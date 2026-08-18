@@ -3,12 +3,58 @@
 }
 function addField(type){const p=PALETTE.find(x=>x.type===type);const q=makeQuestion(type,p?.label||'Novo elemento');editorQuiz.questions.push(q);selectedFieldId=q.id;renderQuestionEditor();}
 
-async function saveCurrent(publish=false){editorQuiz.title=(editorQuiz.title||'Novo Quiz').trim();editorQuiz.slug=uniqueSlug(editorQuiz.slug||editorQuiz.title,editorQuiz.id);editorQuiz.status=publish?'published':editorQuiz.status||'draft';editorQuiz.statistics=editorQuiz.statistics||{};editorQuiz.statistics.createdAt=editorQuiz.statistics.createdAt||new Date().toISOString();editorQuiz.statistics.updatedAt=new Date().toISOString();await saveQuiz(editorQuiz);await refresh();toast(publish?'Quiz publicado.':'Alterações salvas.','success');if(publish)openPublishModal(editorQuiz);}
+async function saveCurrent(publish=false){
+  const previousStatus=editorQuiz.status||'draft';
+  editorQuiz.title=(editorQuiz.title||'Novo Quiz').trim();
+  editorQuiz.slug=uniqueSlug(editorQuiz.slug||editorQuiz.title,editorQuiz.id);
+  editorQuiz.status=publish?'published':previousStatus;
+  editorQuiz.statistics=editorQuiz.statistics||{};
+  editorQuiz.statistics.createdAt=editorQuiz.statistics.createdAt||new Date().toISOString();
+  editorQuiz.statistics.updatedAt=new Date().toISOString();
 
-function publicBase(){const url=new URL(window.location.href);url.hash='';url.search='';url.pathname=url.pathname.replace(/\/admin\/?$/,'/');return url.href.replace(/\/$/,'');}
+  try{
+    await saveQuiz(editorQuiz,{requireCloud:publish});
+    toast(publish?'Quiz publicado e confirmado no Firebase.':'Alterações salvas.','success');
+    if(publish){
+      openPublishModal(editorQuiz);
+      refresh().catch(error=>console.warn('Atualização do painel após publicar falhou.',error));
+    }else{
+      await refresh();
+    }
+  }catch(error){
+    if(publish)editorQuiz.status=previousStatus;
+    console.error('Falha ao salvar/publicar quiz.',error);
+    toast(error?.message||'Não foi possível publicar o quiz.','error');
+  }
+}
+
+function publicBase(){return new URL('../',window.location.href).href.replace(/\/$/,'');}
 function quizUrl(q){return `${publicBase()}/quiz/?slug=${encodeURIComponent(q.slug)}`;}
 function openPublishModal(q){const url=quizUrl(q);const embed=`<iframe src="${url}" width="100%" height="700" style="border:0;width:100%;" loading="lazy" allow="clipboard-write"></iframe>`;modalRoot.innerHTML=`<div class="modal-backdrop"><section class="modal"><div class="modal-head"><div><strong>Publicar Quiz</strong><div class="muted" style="font-size:12px">${escapeHtml(q.title)}</div></div><button class="icon-button" data-close>×</button></div><div class="modal-body publish-grid"><div class="field"><label>Link do quiz</label><div class="publish-row"><input readonly value="${escapeHtml(url)}"><button class="btn btn-secondary" data-copy="url">Copiar</button></div></div><div class="field"><label>Código embed</label><div class="code-box">${escapeHtml(embed)}</div><button class="btn btn-secondary btn-sm" data-copy="embed">Copiar código</button></div><div><label style="font-size:13px;font-weight:600">QR Code</label><div class="qr-preview" style="margin-top:8px"><img alt="QR Code" src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(url)}"></div></div><div class="actions"><a class="btn btn-primary" href="${escapeHtml(url)}" target="_blank" rel="noopener">Visualizar Quiz</a><a class="btn btn-secondary" href="https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}" target="_blank" rel="noopener">Facebook</a><a class="btn btn-secondary" href="https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}" target="_blank" rel="noopener">LinkedIn</a><a class="btn btn-secondary" href="https://wa.me/?text=${encodeURIComponent(url)}" target="_blank" rel="noopener">WhatsApp</a></div></div></section></div>`;modalRoot.querySelector('[data-close]').onclick=()=>modalRoot.innerHTML='';modalRoot.querySelector('[data-copy="url"]').onclick=async()=>{await copyText(url);toast('Link copiado.','success');};modalRoot.querySelector('[data-copy="embed"]').onclick=async()=>{await copyText(embed);toast('Código embed copiado.','success');};modalRoot.querySelector('.modal-backdrop').addEventListener('click',e=>{if(e.target.classList.contains('modal-backdrop'))modalRoot.innerHTML='';});}
 
 function bindCommonActions(){content.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>navigate(b.dataset.go));content.querySelectorAll('[data-new]').forEach(b=>b.onclick=()=>startNew());content.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>{const q=quizzes.find(x=>x.id===b.dataset.edit);if(q)navigate('editor',{quiz:q});});}
-function bindQuizCardActions(){content.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>navigate('editor',{quiz:quizzes.find(q=>q.id===b.dataset.edit)}));content.querySelectorAll('[data-preview]').forEach(b=>b.onclick=()=>{const q=quizzes.find(x=>x.id===b.dataset.preview);window.open(quizUrl(q),'_blank','noopener');});content.querySelectorAll('[data-publish]').forEach(b=>b.onclick=async()=>{const q=quizzes.find(x=>x.id===b.dataset.publish);q.status='published';await saveQuiz(q);openPublishModal(q);await refresh();});content.querySelectorAll('[data-duplicate]').forEach(b=>b.onclick=async()=>{const src=quizzes.find(x=>x.id===b.dataset.duplicate);const q=deepClone(src);q.id=uid('quiz');q.title=`${src.title} - Cópia`;q.slug=uniqueSlug(q.title,q.id);q.status='draft';q.submissions=[];q.statistics={totalViews:0,totalResponses:0,completionRate:0,averageScore:0,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};await saveQuiz(q);toast('Quiz duplicado.','success');await refresh();renderQuizzes();});content.querySelectorAll('[data-delete]').forEach(b=>b.onclick=async()=>{const q=quizzes.find(x=>x.id===b.dataset.delete);if(confirm(`Excluir "${q.title}"?`)){await deleteQuiz(q.id);toast('Quiz excluído.');await refresh();renderQuizzes();}});}
+function bindQuizCardActions(){
+  content.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>navigate('editor',{quiz:quizzes.find(q=>q.id===b.dataset.edit)}));
+  content.querySelectorAll('[data-preview]').forEach(b=>b.onclick=()=>{const q=quizzes.find(x=>x.id===b.dataset.preview);window.open(quizUrl(q),'_blank','noopener');});
+  content.querySelectorAll('[data-publish]').forEach(b=>b.onclick=async()=>{
+    const q=quizzes.find(x=>x.id===b.dataset.publish);
+    if(!q)return;
+    const previousStatus=q.status||'draft';
+    q.status='published';
+    q.statistics=q.statistics||{};
+    q.statistics.updatedAt=new Date().toISOString();
+    try{
+      await saveQuiz(q,{requireCloud:true});
+      openPublishModal(q);
+      toast('Quiz publicado e confirmado no Firebase.','success');
+      refresh().then(()=>{if(activeView==='quizzes')renderQuizzes();}).catch(error=>console.warn('Atualização da lista após publicar falhou.',error));
+    }catch(error){
+      q.status=previousStatus;
+      console.error('Falha ao publicar quiz pela lista.',error);
+      toast(error?.message||'Não foi possível publicar o quiz.','error');
+    }
+  });
+  content.querySelectorAll('[data-duplicate]').forEach(b=>b.onclick=async()=>{const src=quizzes.find(x=>x.id===b.dataset.duplicate);const q=deepClone(src);q.id=uid('quiz');q.title=`${src.title} - Cópia`;q.slug=uniqueSlug(q.title,q.id);q.status='draft';q.submissions=[];q.statistics={totalViews:0,totalResponses:0,completionRate:0,averageScore:0,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};await saveQuiz(q);toast('Quiz duplicado.','success');await refresh();renderQuizzes();});
+  content.querySelectorAll('[data-delete]').forEach(b=>b.onclick=async()=>{const q=quizzes.find(x=>x.id===b.dataset.delete);if(confirm(`Excluir "${q.title}"?`)){await deleteQuiz(q.id);toast('Quiz excluído.');await refresh();renderQuizzes();}});
+}
 
