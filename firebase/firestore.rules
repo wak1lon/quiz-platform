@@ -1,0 +1,20 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+
+    // Administração: exige autenticação Firebase.
+    match /quizzes/{quizId} {
+      allow read: if resource.data.status == 'published' || signedIn();
+      allow create, update, delete: if signedIn();
+
+      // Respostas públicas podem ser criadas; leitura/alteração só por usuário autenticado.
+      match /submissions/{submissionId} {
+        allow create: if request.resource.data.completed == true
+                      && request.resource.data.answers is map
+                      && request.resource.data.createdAt is string;
+        allow read, update, delete: if signedIn();
+      }
+    }
+  }
+}
