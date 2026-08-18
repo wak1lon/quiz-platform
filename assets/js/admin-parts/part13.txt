@@ -7,3 +7,119 @@ if(oldAccountAvatar){
   cleanAccountAvatar.setAttribute('aria-label','Abrir menu da conta');
 }
 await applyAuthenticatedAvatar();
+
+const __resultsRepo=await import(new URL('repository.js',__base).href);
+
+function __resultDisplayValue(value){
+  if(Array.isArray(value))return value.join(' | ');
+  if(value&&typeof value==='object')return JSON.stringify(value);
+  return value??'';
+}
+
+function __exportQuizResults(q){
+  const subs=Array.isArray(q.submissions)?q.submissions:[];
+  const responseFields=(q.questions||[]).filter(field=>RESPONSE_TYPES.has(field.type));
+  const headers=['ID','Data','Score','Status','Duração (s)',...responseFields.map(field=>field.label||field.id)];
+  const rows=[headers,...subs.map(submission=>[
+    submission.id||'',
+    submission.createdAt||'',
+    submission.score??0,
+    submission.completed?'Concluído':'Incompleto',
+    submission.durationSeconds??'',
+    ...responseFields.map(field=>__resultDisplayValue(submission.answers?.[field.id]))
+  ])];
+  const csv='\uFEFF'+rows.map(row=>row.map(csvEscape).join(';')).join('\r\n');
+  download(`${slugify(q.title||'quiz')}-respostas.csv`,csv,'text/csv;charset=utf-8');
+}
+
+renderResults=function(){
+  const current=quizzes[0];
+  content.innerHTML=`<div class="section-head"><div><h2>Resultados e estatísticas</h2><p>Visualize, exporte e gerencie as respostas de cada quiz.</p></div><select id="resultQuizSelect" class="btn btn-secondary">${quizzes.map(q=>`<option value="${q.id}">${escapeHtml(q.title)}</option>`).join('')}</select></div><div id="resultBody"></div>`;
+  const select=document.getElementById('resultQuizSelect');
+
+  const draw=()=>{
+    const q=quizzes.find(x=>x.id===select.value)||current;
+    const body=document.getElementById('resultBody');
+    if(!q){body.innerHTML='<div class="card empty">Nenhum quiz disponível.</div>';return;}
+
+    const subs=Array.isArray(q.submissions)?q.submissions:[];
+    const views=Number(q.statistics?.totalViews)||0;
+    const responses=subs.filter(s=>s.completed).length;
+    const abandoned=Math.max(0,views-responses);
+    const completion=views?Math.round(responses/views*100):Number(q.statistics?.completionRate)||0;
+    const completed=subs.filter(s=>s.completed);
+    const avg=completed.length?Math.round(completed.reduce((sum,s)=>sum+(Number(s.score)||0),0)/completed.length):0;
+    const byQuestion=(q.questions||[]).filter(x=>OPTION_TYPES.has(x.type)).map(field=>{
+      const counts={};
+      subs.forEach(sub=>{
+        const value=sub.answers?.[field.id];
+        (Array.isArray(value)?value:[value]).filter(v=>v!==undefined&&v!==null&&v!=='').forEach(v=>counts[v]=(counts[v]||0)+1);
+      });
+      return {field,counts};
+    });
+
+    body.innerHTML=`
+      <div class="stats-grid">
+        <article class="card stat-card"><div class="stat-value">${responses}</div><div class="stat-label">Total respostas</div></article>
+        <article class="card stat-card"><div class="stat-value">${completion}%</div><div class="stat-label">Taxa conclusão</div></article>
+        <article class="card stat-card"><div class="stat-value">${abandoned}</div><div class="stat-label">Abandonos estimados</div></article>
+        <article class="card stat-card"><div class="stat-value">${avg}%</div><div class="stat-label">Média de score</div></article>
+      </div>
+      <div class="dashboard-grid">
+        <section class="card card-pad">
+          <div class="section-head"><div><h2>Respostas por pergunta</h2></div></div>
+          ${byQuestion.length?byQuestion.map(({field,counts})=>`<div style="margin-bottom:18px"><strong style="font-size:13px">${escapeHtml(field.label)}</strong>${(field.options||[]).map(option=>{const n=counts[option.value]||0,p=responses?Math.round(n/responses*100):0;return `<div style="margin-top:8px"><div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted)"><span>${escapeHtml(option.label)}</span><span>${n} · ${p}%</span></div><div class="bar"><span style="width:${p}%"></span></div></div>`;}).join('')}</div>`).join(''):'<p class="muted">Sem perguntas de opções.</p>'}
+        </section>
+        <section class="card card-pad">
+          <div class="section-head"><div><h2>Exportação</h2><p>${subs.length} registros disponíveis</p></div></div>
+          <div class="actions">
+            <button class="btn btn-secondary" id="exportCsv">Exportar CSV / Excel</button>
+            ${subs.length?'<button class="btn btn-danger" id="clearResponses">Apagar todas</button>':''}
+          </div>
+          <div class="code-box" style="margin-top:12px">O arquivo abre em Excel/Planilhas e inclui cada pergunta em uma coluna própria.</div>
+        </section>
+      </div>
+      <section class="card card-pad" style="margin-top:18px">
+        <div class="section-head"><div><h2>Respostas recebidas</h2><p>${subs.length} registro(s)</p></div></div>
+        <div style="overflow:auto">
+          <table class="result-table">
+            <thead><tr><th>Identificação</th><th>Score</th><th>Data</th><th>Status</th><th>Ações</th></tr></thead>
+            <tbody>${subs.length?subs.map(s=>`<tr><td>${escapeHtml(s.answers?.lead_name||s.answers?.name||s.answers?.nome||s.id)}</td><td>${s.score??0}%</td><td>${formatDate(s.createdAt)}</td><td>${s.completed?'Concluído':'Incompleto'}</td><td><button class="btn btn-sm btn-danger" data-delete-submission="${escapeHtml(s.id)}">Apagar</button></td></tr>`).join(''):'<tr><td colspan="5">Nenhuma resposta.</td></tr>'}</tbody>
+          </table>
+        </div>
+      </section>`;
+
+    document.getElementById('exportCsv')?.addEventListener('click',()=>__exportQuizResults(q));
+
+    body.querySelectorAll('[data-delete-submission]').forEach(button=>button.onclick=async()=>{
+      const id=button.dataset.deleteSubmission;
+      if(!confirm('Apagar esta resposta permanentemente?'))return;
+      button.disabled=true;
+      try{
+        await __resultsRepo.deleteSubmission(q.id,id);
+        q.submissions=(q.submissions||[]).filter(s=>s.id!==id);
+        toast('Resposta apagada.','success');
+        draw();
+      }catch(error){
+        button.disabled=false;
+        toast(error?.message||'Não foi possível apagar a resposta.','error');
+      }
+    });
+
+    document.getElementById('clearResponses')?.addEventListener('click',async()=>{
+      if(!confirm(`Apagar permanentemente todas as ${subs.length} respostas deste quiz?`))return;
+      try{
+        await __resultsRepo.clearSubmissions(q.id);
+        q.submissions=[];
+        toast('Todas as respostas foram apagadas.','success');
+        draw();
+      }catch(error){
+        toast(error?.message||'Não foi possível apagar todas as respostas.','error');
+      }
+    });
+  };
+
+  if(current)select.value=current.id;
+  select.addEventListener('change',draw);
+  draw();
+};
