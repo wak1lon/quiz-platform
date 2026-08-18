@@ -1,0 +1,60 @@
+const __base=new URL('../assets/js/', window.location.href);
+const { blankQuiz, makeQuestion, PALETTE, TEMPLATES, OPTION_TYPES, RESPONSE_TYPES, uid } = await import(new URL('defaults.js',__base).href);
+const { listQuizzes, saveQuiz, deleteQuiz, resetDemo, getLocalState, saveGlobalSettings, storageMode } = await import(new URL('repository.js',__base).href);
+const { firebaseEnabled } = await import(new URL('firebase.js',__base).href);
+const { waitForAuth, loginEmail, logout } = await import(new URL('auth.js',__base).href);
+const { deepClone, escapeHtml, formatDate, slugify, toast, copyText, download, csvEscape, safeJson } = await import(new URL('utils.js',__base).href);
+
+const content=document.getElementById('appContent');
+const sideNav=document.getElementById('sideNav');
+const titleEl=document.getElementById('viewTitle');
+const subtitleEl=document.getElementById('viewSubtitle');
+const storageBadge=document.getElementById('storageBadge');
+const modalRoot=document.getElementById('modalRoot');
+let quizzes=[];
+let activeView='dashboard';
+let editorQuiz=null;
+let selectedFieldId=null;
+let editorTab='questions';
+
+const viewMeta={
+  dashboard:['Dashboard','Visão geral da operação'],quizzes:['Meus Quizzes','Gerencie seus quizzes e status'],editor:['Editor de Quiz','Crie e personalize sua experiência'],templates:['Templates','Modelos prontos para começar'],results:['Resultados','Respostas, scores e estatísticas'],settings:['Configurações','Identidade visual e preferências globais'],integrations:['Integrações','Tracking e integrações padrão']
+};
+
+function setPath(obj,path,value){const parts=path.split('.');let ref=obj;while(parts.length>1){const key=parts.shift();ref[key]=ref[key]??{};ref=ref[key];}ref[parts[0]]=value;}
+function getPath(obj,path){return path.split('.').reduce((a,k)=>a?.[k],obj);}
+function valueFromInput(el){if(el.type==='checkbox')return el.checked;if(el.type==='number'||el.type==='range')return el.value===''?null:Number(el.value);if(el.dataset.json==='true')return safeJson(el.value,{});return el.value;}
+function statusLabel(status){return status==='published'?'<span class="status-pill success">Publicado</span>':status==='archived'?'<span class="status-pill muted">Arquivado</span>':'<span class="status-pill warning">Rascunho</span>';}
+function uniqueSlug(value,currentId){let base=slugify(value)||`quiz-${Date.now().toString(36)}`;let candidate=base,n=2;while(quizzes.some(q=>q.id!==currentId&&q.slug===candidate))candidate=`${base}-${n++}`;return candidate;}
+
+async function refresh(){quizzes=await listQuizzes({admin:true,includeSubmissions:true});storageBadge.textContent=await storageMode();storageBadge.className=`status-pill ${storageBadge.textContent==='Firebase'?'success':''}`;}
+async function navigate(view,opts={}){activeView=view;sideNav.querySelectorAll('button[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===view));[titleEl.textContent,subtitleEl.textContent]=viewMeta[view]||['QuizPlatform',''];if(view==='editor'&&opts.quiz){editorQuiz=deepClone(opts.quiz);selectedFieldId=editorQuiz.questions?.[0]?.id||null;editorTab=opts.tab||'questions';}else if(view==='editor'&&!editorQuiz){editorQuiz=blankQuiz();selectedFieldId=editorQuiz.questions[0]?.id||null;}await render();document.getElementById('sidebar').classList.remove('open');}
+
+async function render(){if(activeView!=='editor')await refresh();if(activeView==='dashboard')renderDashboard();if(activeView==='quizzes')renderQuizzes();if(activeView==='editor')renderEditor();if(activeView==='templates')renderTemplates();if(activeView==='results')renderResults();if(activeView==='settings')renderSettings();if(activeView==='integrations')renderGlobalIntegrations();}
+
+function renderDashboard(){
+  const totals={quizzes:quizzes.length,responses:0,views:0};quizzes.forEach(q=>{totals.responses+=Number(q.statistics?.totalResponses)||q.submissions?.length||0;totals.views+=Number(q.statistics?.totalViews)||0;});
+  const completion=totals.views?Math.min(100,Math.round((totals.responses/totals.views)*100)):0;
+  const today=new Date().toISOString().slice(0,10);const newToday=quizzes.flatMap(q=>q.submissions||[]).filter(s=>String(s.createdAt||'').startsWith(today)).length;
+  const recent=[...quizzes].sort((a,b)=>String(b.statistics?.updatedAt||'').localeCompare(String(a.statistics?.updatedAt||''))).slice(0,5);
+  const popular=[...quizzes].sort((a,b)=>(b.statistics?.totalViews||0)-(a.statistics?.totalViews||0)).slice(0,5);
+  const days=Array.from({length:7},(_,i)=>{const d=new Date();d.setDate(d.getDate()-(6-i));return d.toISOString().slice(0,10);});
+  const dayCounts=days.map(day=>quizzes.flatMap(q=>q.submissions||[]).filter(s=>String(s.createdAt||'').startsWith(day)).length);const max=Math.max(1,...dayCounts);
+  content.innerHTML=`
+    <div class="stats-grid">
+      ${[['Quizzes criados',totals.quizzes],['Total de respostas',totals.responses],['Taxa de conclusão',`${completion}%`],['Novos hoje',newToday]].map(([l,v])=>`<article class="card stat-card"><div class="stat-value">${v}</div><div class="stat-label">${l}</div></article>`).join('')}
+    </div>
+    <div class="dashboard-grid">
+      <section class="card card-pad"><div class="section-head"><div><h2>Últimos quizzes</h2><p>Atualizados recentemente</p></div><button class="btn btn-sm btn-secondary" data-go="quizzes">Ver todos</button></div><div class="list">${recent.length?recent.map(q=>`<div class="list-row"><div><strong>${escapeHtml(q.title)}</strong><small>${q.statistics?.totalResponses||q.submissions?.length||0} respostas · ${q.statistics?.completionRate||0}% conclusão</small></div><button class="btn btn-sm btn-ghost" data-edit="${q.id}">Editar</button></div>`).join(''):'<div class="empty">Nenhum quiz criado.</div>'}</div></section>
+      <section class="card card-pad"><h2 style="margin:0;font-size:16px">Desempenho · 7 dias</h2><div class="chart-list">${days.map((d,i)=>`<div class="chart-col"><span style="height:${Math.max(8,(dayCounts[i]/max)*120)}px"></span><small>${d.slice(8)}</small></div>`).join('')}</div></section>
+      <section class="card card-pad"><h2 style="margin:0 0 6px;font-size:16px">Quizzes mais populares</h2><div class="list">${popular.map(q=>`<div class="list-row"><div><strong>★ ${escapeHtml(q.title)}</strong><small>${q.statistics?.totalViews||0} visualizações</small></div><div style="width:110px"><div class="bar"><span style="width:${Math.min(100,((q.statistics?.totalViews||0)/Math.max(1,...popular.map(x=>x.statistics?.totalViews||0)))*100)}%"></span></div></div></div>`).join('')}</div></section>
+      <section class="card card-pad"><h2 style="margin:0 0 12px;font-size:16px">Atalhos</h2><div class="actions"><button class="btn btn-primary" data-new>+ Novo Quiz</button><button class="btn btn-secondary" data-go="templates">Usar template</button><button class="btn btn-secondary" data-go="results">Ver resultados</button></div></section>
+    </div>`;
+  bindCommonActions();
+}
+
+function renderQuizzes(){
+  content.innerHTML=`<div class="section-head"><div><h2>Meus Quizzes</h2><p>Busque, filtre, edite, publique ou duplique.</p></div><button class="btn btn-primary" id="newQuiz">+ Novo Quiz</button></div>
+  <div class="toolbar"><div class="search"><input id="quizSearch" placeholder="Buscar quiz por título ou categoria"></div><select id="statusFilter" class="btn btn-secondary"><option value="">Todos os status</option><option value="draft">Rascunho</option><option value="published">Publicado</option><option value="archived">Arquivado</option></select></div><div id="quizList"></div>`;
+  const list=document.getElementById('quizList');
+  const draw=()=>{const term=document.getElementById('quizSearch').value.toLowerCase();const status=document.getElementById('statusFilter').value;const filtered=quizzes.filter(q=>(!term||`${q.title} ${q.category}`.toLowerCase().includes(term))&&(!status||q.status===status));list.innerHTML=filtered.length?`<div class="quiz-grid">${filtered.map(q=>`<article class="card quiz-card"><div class="quiz-card-top"><div><h3>${escapeHtml(q.title)}</h3><div class="quiz-meta"><span>${escapeHtml(q.category||'Sem categoria')}</span><span>/quiz/?slug=${escapeHtml(q.slug)}</span></div></div>${statusLabel(q.status)}</div><div class="quiz-meta"><span>Respostas: ${q.statistics?.totalResponses||q.submissions?.length||0}</span><span>Atualizado: ${formatDate(q.statistics?.updatedAt)}</span></div><div class="quiz-actions"><button class="btn btn-sm btn-primary" data-edit="${q.id}">Editar</button><button class="btn btn-sm btn-secondary" data-preview="${q.id}">Visualizar</button><button class="btn btn-sm btn-secondary" data-publish="${q.id}">Publicar</button><button class="btn btn-sm btn-ghost" data-duplicate="${q.id}">Duplicar</button><button class="btn btn-sm btn-danger" data-delete="${q.id}">Excluir</button></div></article>`).join('')}</div>`:'<div class="card empty">Nenhum quiz encontrado.</div>';bindQuizCardActions();};
