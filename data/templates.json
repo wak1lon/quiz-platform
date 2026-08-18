@@ -1,0 +1,13 @@
+{
+  "version": "1.0.0",
+  "templates": [
+    {"id":"previdenciario","name":"Quiz Previdenciário","category":"Jurídico"},
+    {"id":"satisfacao","name":"Pesquisa de Satisfação","category":"Pesquisa"},
+    {"id":"vocacional","name":"Teste Vocacional","category":"Educação"},
+    {"id":"contato","name":"Formulário de Contato","category":"Leads"},
+    {"id":"personalidade","name":"Teste de Personalidade","category":"Perfil"},
+    {"id":"educacional","name":"Quiz Educacional","category":"Educação"},
+    {"id":"saude","name":"Quiz de Saúde","category":"Saúde"},
+    {"id":"gamer","name":"Quiz Gamer","category":"Entretenimento"}
+  ]
+}
