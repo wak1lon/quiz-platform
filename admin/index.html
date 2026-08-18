@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#1E3A8A" />
+  <title>Painel | QuizPlatform</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/style.css" />
+  <link rel="stylesheet" href="../assets/css/admin.css" />
+  <link rel="stylesheet" href="../assets/css/responsive.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand"><span class="brand-mark">Q</span><div><strong>QuizPlatform</strong><small>Gestão de quizzes</small></div></div>
+      <nav class="side-nav" id="sideNav">
+        <button data-view="dashboard" class="active">Dashboard</button>
+        <button data-view="quizzes">Meus Quizzes</button>
+        <button data-view="editor">Criar Quiz</button>
+        <button data-view="templates">Templates</button>
+        <button data-view="results">Resultados</button>
+        <button data-view="settings">Configurações</button>
+        <button data-view="integrations">Integrações</button>
+      </nav>
+      <div class="sidebar-footer"><button id="resetDemo" class="link-button">Restaurar demonstração</button><br><button id="logoutBtn" class="link-button" style="margin-top:10px">Sair</button></div>
+    </aside>
+
+    <div class="app-main">
+      <header class="topbar">
+        <button id="menuToggle" class="icon-button mobile-only" aria-label="Abrir menu">☰</button>
+        <div><h1 id="viewTitle">Dashboard</h1><p id="viewSubtitle">Visão geral da operação</p></div>
+        <div class="topbar-actions"><span id="storageBadge" class="status-pill">Local</span><div class="avatar">WG</div></div>
+      </header>
+      <main id="appContent" class="content-area" aria-live="polite"></main>
+      <footer class="app-footer">QuizPlatform 1.0.0 · Estrutura pronta para GitHub Pages + Firebase</footer>
+    </div>
+  </div>
+
+  <div id="modalRoot"></div>
+  <div id="toastRoot" class="toast-root"></div>
+  <script type="module" src="../assets/js/admin.js"></script>
+</body>
+</html>
