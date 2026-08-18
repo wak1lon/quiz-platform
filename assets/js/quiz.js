@@ -40,6 +40,7 @@ trackSafe('quiz_view',{quiz_id:quiz.id,quiz_slug:quiz.slug});
 const attemptsKey=`qp_attempts_${quiz.id}`;
 restoreProgress();
 if(maxAttemptsReached())renderAttemptLimit();
+else if(quiz.settings?.showWelcome===false)startQuiz();
 else renderWelcome();
 
 function trackSafe(event,params={}){
@@ -229,7 +230,7 @@ function syncCurrentField(q,{persist=true}={}){
 
 function clearFieldError(){
   const err=document.getElementById('fieldRequiredError');
-  if(err){err.remove();}
+  if(err)err.remove();
   const input=document.getElementById('fieldInput');
   if(input)input.removeAttribute('aria-invalid');
 }
@@ -378,7 +379,11 @@ function renderField(q,progress){
 
   const title=`<h2>${escapeHtml(q.label)}${q.required?' *':''}</h2>${desc}`;
 
-  if(['radio','checkbox','image-options'].includes(q.type)){
+  if(q.type==='image-options'){
+    return `${title}<div class="option-list image-option-grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));align-items:stretch">${(q.options||[]).map(o=>`<label class="option image-option-card ${selectedOption(q,o.value)?'selected':''}" data-image-choice="true" style="display:flex;flex-direction:column;align-items:stretch;gap:10px;padding:10px;text-align:center;cursor:pointer"><input data-field-id="${escapeHtml(q.id)}" type="radio" name="${escapeHtml(q.id)}" value="${escapeHtml(o.value)}" ${selectedOption(q,o.value)?'checked':''} style="position:absolute;opacity:0;pointer-events:none"><div style="width:100%;aspect-ratio:4/3;border-radius:10px;overflow:hidden;background:#F1F5F9;display:grid;place-items:center">${o.image?`<img src="${escapeHtml(o.image)}" alt="${escapeHtml(o.label||'Opção')}" style="width:100%;height:100%;object-fit:cover">`:(o.icon?`<span class="option-icon" style="font-size:42px">${escapeHtml(o.icon)}</span>`:'<span class="muted">Sem imagem</span>')}</div><strong style="display:block">${escapeHtml(o.label||'Opção')}</strong></label>`).join('')}</div>`;
+  }
+
+  if(['radio','checkbox'].includes(q.type)){
     return `${title}<div class="option-list">${(q.options||[]).map(o=>`<label class="option ${selectedOption(q,o.value)?'selected':''}">${o.image?`<img src="${escapeHtml(o.image)}" alt="" style="width:54px;height:54px;border-radius:9px;object-fit:cover">`:''}${o.icon?`<span class="option-icon">${escapeHtml(o.icon)}</span>`:''}<input data-field-id="${escapeHtml(q.id)}" type="${q.type==='checkbox'?'checkbox':'radio'}" name="${escapeHtml(q.id)}" value="${escapeHtml(o.value)}" ${selectedOption(q,o.value)?'checked':''}><span>${escapeHtml(o.label)}</span></label>`).join('')}</div>`;
   }
 
@@ -414,12 +419,34 @@ function selectedOption(q,value){
   return Array.isArray(answer)?answer.includes(value):answer===value;
 }
 
+function markSelectedOptions(){
+  root.querySelectorAll('.option').forEach(label=>label.classList.toggle('selected',Boolean(label.querySelector('input')?.checked)));
+}
+
 function bindField(q){
-  if(['radio','checkbox','image-options'].includes(q.type)){
+  if(q.type==='image-options'){
+    root.querySelectorAll('[data-image-choice]').forEach(card=>{
+      card.onclick=event=>{
+        event.preventDefault();
+        if(busy||finished)return;
+        const input=card.querySelector('input');
+        if(!input)return;
+        optionInputs(q).forEach(other=>{other.checked=false;});
+        input.checked=true;
+        syncCurrentField(q,{persist:true});
+        markSelectedOptions();
+        clearFieldError();
+        if(q.autoAdvance===true)void advance(q);
+      };
+    });
+    return;
+  }
+
+  if(['radio','checkbox'].includes(q.type)){
     optionInputs(q).forEach(input=>{
       input.onchange=()=>{
         syncCurrentField(q,{persist:true});
-        root.querySelectorAll('.option').forEach(label=>label.classList.toggle('selected',Boolean(label.querySelector('input')?.checked)));
+        markSelectedOptions();
         clearFieldError();
       };
     });
@@ -629,7 +656,8 @@ function retryQuiz(){
   busy=false;
   startedAt=Date.now();
   clearProgress();
-  renderWelcome();
+  if(quiz.settings?.showWelcome===false)startQuiz();
+  else renderWelcome();
 }
 
 function maxAttemptsReached(){
