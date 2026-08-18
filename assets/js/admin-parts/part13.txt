@@ -1,0 +1,9 @@
+const oldAccountAvatar=document.getElementById('accountAvatar')||document.querySelector('.avatar');
+if(oldAccountAvatar){
+  const cleanAccountAvatar=oldAccountAvatar.cloneNode(true);
+  oldAccountAvatar.replaceWith(cleanAccountAvatar);
+  cleanAccountAvatar.onclick=openAccountMenu;
+  cleanAccountAvatar.setAttribute('role','button');
+  cleanAccountAvatar.setAttribute('aria-label','Abrir menu da conta');
+}
+await applyAuthenticatedAvatar();
