@@ -68,6 +68,7 @@ export function makeQuestion(type='radio', label='Nova pergunta') {
       { id:uid('opt'), label:'Opção 2', value:'opcao_2', icon:'', image:'', weight:0 }
     ];
   }
+  if (type === 'image-options') Object.assign(base, { autoAdvance:false });
   if (type === 'rating') Object.assign(base, { min:1, max:5, step:1 });
   if (type === 'slider') Object.assign(base, { min:0, max:100, step:1 });
   if (type === 'title') Object.assign(base, { label:'Título da seção', level:'h2' });
@@ -83,7 +84,7 @@ export function blankQuiz() {
   return {
     id: uid('quiz'),
     title:'Novo Quiz', slug:`quiz-${Date.now().toString(36)}`, description:'', status:'draft', category:'', tags:[],
-    settings:{ showProgress:true, showQuestionNumber:true, allowBack:true, autoSave:true, timeLimit:null, limitByIp:false, maxAttempts:3, thankYouMessage:'Obrigado por responder!' },
+    settings:{ showWelcome:true, showProgress:true, showQuestionNumber:true, allowBack:true, autoSave:true, timeLimit:null, limitByIp:false, maxAttempts:3, thankYouMessage:'Obrigado por responder!' },
     messages:{ welcome:'Bem-vindo! Responda às perguntas para ver seu resultado.', requiredError:'Selecione ou preencha uma resposta para continuar.', completion:'Quiz concluído com sucesso.', timeout:'O tempo do quiz terminou.', attemptLimit:'Você atingiu o limite de tentativas.' },
     resultSettings:{ showPercentage:true, showCorrectAnswers:false, showFeedback:true, redirectUrl:'', emailResult:false, resultEmail:'' },
     design:{ primaryColor:'#1E3A8A', secondaryColor:'#3B82F6', backgroundColor:'#F3F4F6', textColor:'#1F2937', accentColor:'#F59E0B', successColor:'#10B981', errorColor:'#EF4444', fontFamily:'Poppins', titleFont:'Poppins', titleSize:32, titleWeight:700, bodySize:16, bodyWeight:400, logo:'', favicon:'', backgroundImage:'', backgroundPattern:'', buttonBackground:'#1E3A8A', buttonText:'#FFFFFF', buttonRadius:10, buttonShadow:true, cardBackground:'#FFFFFF', cardShadow:true, cardRadius:18, cardPadding:32 },
