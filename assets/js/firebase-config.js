@@ -1,13 +1,14 @@
-// A configuração web do Firebase não é um segredo. A segurança real fica nas regras do Firestore.
-// Preencha os dados do seu projeto e altere enabled para true.
+// Configuração pública do Firebase Web.
+// A segurança administrativa é aplicada pelo Firebase Authentication + Firestore Rules.
 export const FIREBASE_CONFIG = {
-  enabled: false,
+  enabled: true,
   config: {
-    apiKey: 'SUBSTITUA_AQUI',
-    authDomain: 'SEU-PROJETO.firebaseapp.com',
-    projectId: 'SEU-PROJETO',
-    storageBucket: 'SEU-PROJETO.appspot.com',
-    messagingSenderId: 'SUBSTITUA_AQUI',
-    appId: 'SUBSTITUA_AQUI'
+    apiKey: 'AIzaSyDOcUcT8iLVzbUqVNK6CVeFSonEggsFwos',
+    authDomain: 'quiz-2f97f.firebaseapp.com',
+    projectId: 'quiz-2f97f',
+    storageBucket: 'quiz-2f97f.firebasestorage.app',
+    messagingSenderId: '114269448426',
+    appId: '1:114269448426:web:d04afeb0cbf78965660f93',
+    measurementId: 'G-8HKJLNR1JF'
   }
 };
