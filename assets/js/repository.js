@@ -139,24 +139,28 @@ export async function saveSubmission(quiz,submission){
 }
 
 export async function deleteSubmission(quizId,submissionId){
-  local.removeSubmission(quizId,submissionId);
   if(firebaseEnabled()){
     const f=await loadFirebase();
     await withTimeout(f.deleteDoc(f.doc(f.db,'quizzes',quizId,'submissions',submissionId)),'Exclusão da resposta');
   }
+  local.removeSubmission(quizId,submissionId);
   return true;
 }
 
 export async function clearSubmissions(quizId){
-  const localQuiz=local.getQuizzes().find(q=>q.id===quizId);
-  local.clearSubmissions(quizId);
   if(firebaseEnabled()){
     const f=await loadFirebase();
     const col=f.collection(f.db,'quizzes',quizId,'submissions');
     const snapshot=await withTimeout(f.getDocs(col),'Consulta para limpar respostas');
-    await Promise.all(snapshot.docs.map(doc=>withTimeout(f.deleteDoc(doc.ref),'Exclusão de resposta',10000)));
+    const docs=[...snapshot.docs];
+    for(let i=0;i<docs.length;i+=450){
+      const batch=f.writeBatch(f.db);
+      docs.slice(i,i+450).forEach(doc=>batch.delete(doc.ref));
+      await withTimeout(batch.commit(),'Exclusão em lote das respostas',15000);
+    }
   }
-  return localQuiz||true;
+  local.clearSubmissions(quizId);
+  return true;
 }
 
 export async function incrementView(quiz){local.incrementView(quiz.id);}
