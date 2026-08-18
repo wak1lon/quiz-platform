@@ -15,12 +15,3 @@ try{
   console.error('Falha ao iniciar o quiz público.',error);
   renderFatal('A página do quiz não conseguiu iniciar. Atualize a página e tente novamente.');
 }
-
-Promise.allSettled([
-  import('./quiz-legal.js'),
-  import('./quiz-brand.js')
-]).then(results=>{
-  for(const result of results){
-    if(result.status==='rejected')console.warn('Módulo complementar do quiz não carregou.',result.reason);
-  }
-});
