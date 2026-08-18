@@ -1,0 +1,57 @@
+const accountAuth=await import(new URL('auth.js',__base).href);
+const metaTrackingApi=await import(new URL('meta-tracking-settings.js',__base).href);
+
+async function applyAuthenticatedAvatar(){
+  const avatar=document.getElementById('accountAvatar')||document.querySelector('.avatar');
+  if(!avatar)return;
+  const localProfile=safeSettingsApi.getActiveProfile();
+  let user=null;
+  try{user=await accountAuth.currentUser();}catch{}
+  const photo=localProfile?.photoData||user?.photoURL||'';
+  const name=localProfile?.name||user?.displayName||'Wakilon Gestor';
+  if(photo)avatar.innerHTML=`<img src="${escapeHtml(photo)}" alt="Foto de ${escapeHtml(name)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+  else avatar.textContent=name.split(/\s+/).map(x=>x[0]).join('').slice(0,2).toUpperCase();
+  avatar.title='Abrir menu da conta';
+}
+
+function closeAccountMenu(){document.getElementById('qpAccountMenu')?.remove();}
+async function openAccountMenu(e){
+  e?.stopPropagation();
+  const existing=document.getElementById('qpAccountMenu');if(existing){existing.remove();return;}
+  const profile=safeSettingsApi.getActiveProfile();let user=null;try{user=await accountAuth.currentUser();}catch{}
+  const name=profile?.name||user?.displayName||'Wakilon Gestor';const email=user?.email||profile?.email||accountAuth.ADMIN_EMAIL;const photo=profile?.photoData||user?.photoURL||'';
+  const menu=document.createElement('div');menu.id='qpAccountMenu';menu.style='position:fixed;right:22px;top:72px;width:min(330px,calc(100vw - 28px));background:var(--surface);border:1px solid var(--border);border-radius:16px;box-shadow:0 22px 60px rgba(15,23,42,.18);padding:12px;z-index:3000';
+  menu.innerHTML=`<div style="display:flex;gap:12px;align-items:center;padding:8px 8px 14px;border-bottom:1px solid var(--border)"><div style="width:48px;height:48px;border-radius:50%;overflow:hidden;background:var(--background);display:grid;place-items:center">${photo?`<img src="${escapeHtml(photo)}" alt="Perfil" style="width:100%;height:100%;object-fit:cover">`:escapeHtml(name.charAt(0).toUpperCase())}</div><div style="min-width:0"><strong style="display:block">${escapeHtml(name)}</strong><small class="muted" style="display:block;overflow:hidden;text-overflow:ellipsis">${escapeHtml(email)}</small></div></div><div style="display:grid;gap:6px;padding-top:10px"><button class="btn btn-ghost" data-account-action="settings" style="justify-content:flex-start">⚙️ Perfil e Configurações</button><button class="btn btn-ghost" data-account-action="integrations" style="justify-content:flex-start">🔌 Conexões e Apps</button><button class="btn btn-danger" data-account-action="logout" style="justify-content:flex-start">↪ Sair</button></div>`;
+  document.body.appendChild(menu);
+  menu.querySelector('[data-account-action="settings"]').onclick=()=>{closeAccountMenu();navigate('settings');};
+  menu.querySelector('[data-account-action="integrations"]').onclick=()=>{closeAccountMenu();navigate('integrations');};
+  menu.querySelector('[data-account-action="logout"]').onclick=async()=>{closeAccountMenu();await logout();location.reload();};
+}
+const accountAvatar=document.getElementById('accountAvatar')||document.querySelector('.avatar');if(accountAvatar){accountAvatar.onclick=openAccountMenu;}document.addEventListener('click',e=>{if(!e.target.closest('#qpAccountMenu')&&!e.target.closest('#accountAvatar'))closeAccountMenu();});
+await applyAuthenticatedAvatar();
+
+const _settingsBeforeAccount=renderSettings;
+renderSettings=async function(){
+  await _settingsBeforeAccount();
+  const profile=safeSettingsApi.getActiveProfile();let user=null;try{user=await accountAuth.currentUser();}catch{}
+  const block=document.createElement('div');block.style.marginTop='18px';block.innerHTML=`<div class="settings-grid"><section class="card settings-card"><h3>Conta vinculada</h3><div style="display:flex;gap:14px;align-items:center;margin-bottom:16px"><div style="width:62px;height:62px;border-radius:50%;overflow:hidden;background:var(--background);display:grid;place-items:center">${profile?.photoData||user?.photoURL?`<img src="${escapeHtml(profile?.photoData||user?.photoURL||'')}" alt="Foto do usuário" style="width:100%;height:100%;object-fit:cover">`:'👤'}</div><div><strong>${escapeHtml(profile?.name||user?.displayName||'Wakilon Gestor')}</strong><small class="muted" style="display:block">${escapeHtml(user?.email||profile?.email||accountAuth.ADMIN_EMAIL)}</small><small class="muted">${user?.providerData?.some(p=>p.providerId==='google.com')?'Foto automática disponível pela conta Google':'Você pode enviar uma foto manual no perfil'}</small></div></div><button class="btn btn-secondary" id="editCurrentProfile">Editar foto e perfil</button></section><section class="card settings-card"><h3>Manutenção</h3><p class="muted" style="font-size:12px">Ferramentas de manutenção ficam concentradas aqui para evitar cliques acidentais.</p><button class="btn btn-danger" id="settingsResetDemo">Restaurar demonstração</button><p class="muted" style="font-size:11px;margin-top:10px">Substitui apenas os dados locais de demonstração deste navegador.</p></section></div>`;content.appendChild(block);
+  document.getElementById('editCurrentProfile').onclick=()=>openProfileModal(profile);
+  document.getElementById('settingsResetDemo').onclick=()=>document.getElementById('resetDemo')?.click();
+};
+
+function connectionStatus(ok,label='Conectado'){return ok?`<span class="status-pill success">${label}</span>`:'<span class="status-pill muted">Não configurado</span>';}
+renderGlobalIntegrations=function(){
+  const s=getLocalState().settings;const meta=metaTrackingApi.getMetaTrackingSettings();
+  content.innerHTML=`<div class="section-head"><div><h2>Conexões e Apps</h2><p>Centralize tracking e integrações externas sem alterar Firebase.</p></div><span class="status-pill success">Área independente</span></div><div class="integration-grid">
+  <section class="card integration-card"><div class="section-head"><div><h3 style="margin:0">Meta · Pixel + Conversions API</h3><p>Tracking navegador + endpoint server-side seguro</p></div>${connectionStatus(meta.enabled&&!!meta.pixelId,'Ativo')}</div><div class="field-row"><span>Ativar Meta Tracking</span><label class="toggle"><input id="metaEnabled" type="checkbox" ${meta.enabled?'checked':''}><span></span></label></div><div class="field"><label>Pixel ID</label><input id="metaPixelId" inputmode="numeric" value="${escapeHtml(meta.pixelId)}" placeholder="123456789012345"></div><div class="field"><label>Endpoint seguro da Conversions API</label><input id="metaCapiEndpoint" value="${escapeHtml(meta.capiEndpoint)}" placeholder="https://api.seudominio.com/meta/events"><small class="muted">O Access Token da Meta deve ficar no servidor desse endpoint, nunca no navegador.</small></div><div class="field"><label>Test Event Code (opcional)</label><input id="metaTestCode" value="${escapeHtml(meta.testEventCode)}" placeholder="TEST12345"></div><div class="form-grid"><div class="field-row"><span>Visualização</span><label class="toggle"><input id="metaView" type="checkbox" ${meta.trackQuizView?'checked':''}><span></span></label></div><div class="field-row"><span>Início</span><label class="toggle"><input id="metaStart" type="checkbox" ${meta.trackQuizStart?'checked':''}><span></span></label></div><div class="field-row"><span>Respostas</span><label class="toggle"><input id="metaAnswer" type="checkbox" ${meta.trackQuizAnswer?'checked':''}><span></span></label></div><div class="field-row"><span>Conclusão</span><label class="toggle"><input id="metaComplete" type="checkbox" ${meta.trackQuizComplete?'checked':''}><span></span></label></div></div><div class="actions" style="margin-top:14px"><button class="btn btn-primary" id="saveMetaConnection">Salvar Meta</button><button class="btn btn-secondary" id="testMetaConnection">Testar endpoint</button></div></section>
+  <section class="card integration-card"><div class="section-head"><div><h3 style="margin:0">Google Tag Manager</h3><p>Container global para os quizzes</p></div>${connectionStatus(/^GTM-[A-Z0-9]+$/i.test(s.gtmId||''))}</div><div class="field"><label>GTM ID</label><input id="connectionGtm" value="${escapeHtml(s.gtmId||'')}" placeholder="GTM-XXXXXX"></div><button class="btn btn-secondary" id="saveGoogleConnections">Salvar Google</button></section>
+  <section class="card integration-card"><div class="section-head"><div><h3 style="margin:0">Google Analytics</h3><p>Measurement ID padrão</p></div>${connectionStatus(/^G-[A-Z0-9]+$/i.test(s.gaId||''))}</div><div class="field"><label>Measurement ID</label><input id="connectionGa" value="${escapeHtml(s.gaId||'')}" placeholder="G-XXXXXXXX"></div><p class="muted" style="font-size:11px">Pode ser sobrescrito individualmente dentro de cada quiz.</p></section>
+  <section class="card integration-card"><h3>Webhook e WhatsApp</h3><p class="muted">São configurados individualmente em cada quiz em <strong>Editor → Integrações</strong>, porque cada formulário pode ter destinos diferentes.</p><button class="btn btn-secondary" id="goQuizzesApps">Abrir meus quizzes</button></section>
+  <section class="card integration-card"><h3>Segurança das conexões</h3><div class="code-box">Tokens secretos e chaves privadas não são armazenados nesta tela.</div><p class="muted" style="font-size:11px">Para APIs que exigem segredo, a QUIZ ADV usa um endpoint HTTPS intermediário/server-side.</p></section></div>`;
+  document.getElementById('saveMetaConnection').onclick=()=>{try{const pixel=document.getElementById('metaPixelId').value.trim();if(pixel&&!/^\d+$/.test(pixel))throw new Error('Pixel ID inválido. Use apenas números.');metaTrackingApi.saveMetaTrackingSettings({enabled:document.getElementById('metaEnabled').checked,pixelId:pixel,capiEndpoint:document.getElementById('metaCapiEndpoint').value.trim(),testEventCode:document.getElementById('metaTestCode').value.trim(),trackQuizView:document.getElementById('metaView').checked,trackQuizStart:document.getElementById('metaStart').checked,trackQuizAnswer:document.getElementById('metaAnswer').checked,trackQuizComplete:document.getElementById('metaComplete').checked});toast('Conexão Meta salva localmente.','success');renderGlobalIntegrations();}catch(e){toast(e.message,'error');}};
+  document.getElementById('testMetaConnection').onclick=async()=>{try{metaTrackingApi.saveMetaTrackingSettings({enabled:document.getElementById('metaEnabled').checked,pixelId:document.getElementById('metaPixelId').value.trim(),capiEndpoint:document.getElementById('metaCapiEndpoint').value.trim(),testEventCode:document.getElementById('metaTestCode').value.trim()});await metaTrackingApi.testMetaConnection();toast('Endpoint da Meta respondeu com sucesso.','success');}catch(e){toast(e.message,'error');}};
+  document.getElementById('saveGoogleConnections').onclick=()=>{const gtm=document.getElementById('connectionGtm').value.trim(),ga=document.getElementById('connectionGa').value.trim();if(gtm&&!/^GTM-[A-Z0-9]+$/i.test(gtm)){toast('GTM ID inválido. Exemplo: GTM-ABC123.','error');return;}if(ga&&!/^G-[A-Z0-9]+$/i.test(ga)){toast('Measurement ID inválido. Exemplo: G-ABC123DEF.','error');return;}saveGlobalSettings({gtmId:gtm,gaId:ga});toast('Conexões Google salvas.','success');renderGlobalIntegrations();};
+  document.getElementById('goQuizzesApps').onclick=()=>navigate('quizzes');
+};
+
+applyPlatformBrand();await applyAuthenticatedAvatar();
