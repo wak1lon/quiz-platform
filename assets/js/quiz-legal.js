@@ -20,6 +20,7 @@ function enhance(){
   if(!root)return;
   const card=root.querySelector('.quiz-card-public .quiz-inner');
   if(card&&!card.querySelector('.qp-legal-footer')&&footerHtml())card.insertAdjacentHTML('beforeend',footerHtml());
+  const back=document.getElementById('backBtn');if(back&&!back.textContent.trim().startsWith('←'))back.textContent='← Voltar';
   const next=document.getElementById('nextBtn');
   if(legal.consentRequired&&next&&/resultado|concluir|enviar/i.test(next.textContent||'')&&!document.getElementById('qpLegalConsent')){
     const actions=next.closest('.quiz-actions-public');
