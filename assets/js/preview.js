@@ -37,7 +37,12 @@ function renderField(q){
   if(q.type==='textarea')return `${title}<div class="quiz-field"><textarea id="fieldInput" placeholder="${escapeHtml(q.placeholder||'')}"></textarea></div>`;
   if(q.type==='rating')return `${title}<div class="rating">${Array.from({length:q.max||5},(_,i)=>`<button type="button" data-rating="${i+1}">★</button>`).join('')}</div>`;
   if(q.type==='slider')return `${title}<input id="fieldInput" type="range" min="${q.min??0}" max="${q.max??100}" step="${q.step??1}" value="${q.defaultValue??q.min??0}" style="width:100%">`;
-  if(['input','number','date','file'].includes(q.type))return `${title}<div class="quiz-field"><input id="fieldInput" type="${q.type==='input'?'text':q.type}" placeholder="${escapeHtml(q.placeholder||'')}"></div>`;
+  if(['input','number','date','file'].includes(q.type)){
+    const isPhone=q.type==='input'&&/whatsapp|telefone|celular/i.test(`${q.id||''} ${q.label||''}`);
+    const isEmail=q.type==='input'&&/e[- ]?mail|email/i.test(`${q.id||''} ${q.label||''} ${q.placeholder||''}`);
+    if(isPhone)return `${title}<div class="quiz-field quiz-phone-field"><select id="phoneCountry" class="phone-country" aria-label="País do telefone"><option value="55">🇧🇷 +55 · Brasil</option><option value="1">🇺🇸 +1 · EUA / Canadá</option><option value="351">🇵🇹 +351 · Portugal</option><option value="34">🇪🇸 +34 · Espanha</option><option value="44">🇬🇧 +44 · Reino Unido</option></select><input id="fieldInput" name="tel" type="tel" autocomplete="tel-national" inputmode="tel" placeholder="${escapeHtml(q.placeholder||'Telefone com DDD')}"></div><small class="phone-field-hint">Selecione o país e informe um número válido.</small>`;
+    return `${title}<div class="quiz-field"><input id="fieldInput" name="${isEmail?'email':'response'}" type="${q.type==='input'?(isEmail?'email':'text'):q.type}" autocomplete="${isEmail?'email':'off'}"${isEmail?' inputmode="email" autocapitalize="none" spellcheck="false"':''} placeholder="${escapeHtml(q.placeholder||'')}"></div>`;
+  }
   return title;
 }
 

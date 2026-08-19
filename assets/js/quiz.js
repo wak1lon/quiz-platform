@@ -13,6 +13,17 @@ const platformName=platformMemory?.platformName||'QUIZ ADV';
 
 const DISPLAY_TYPES=new Set(['title','text','image','separator','progress','container','grid','percentage','chart','results-list','badge','message']);
 const ACTION_TYPES=new Set(['button','action','next','back','submit','retry']);
+const PHONE_COUNTRIES=[
+  {code:'55',iso:'BR',flag:'🇧🇷',name:'Brasil',min:10,max:11},
+  {code:'1',iso:'US',flag:'🇺🇸',name:'EUA / Canadá',min:10,max:10},
+  {code:'351',iso:'PT',flag:'🇵🇹',name:'Portugal',min:9,max:9},
+  {code:'34',iso:'ES',flag:'🇪🇸',name:'Espanha',min:9,max:9},
+  {code:'44',iso:'GB',flag:'🇬🇧',name:'Reino Unido',min:9,max:10},
+  {code:'54',iso:'AR',flag:'🇦🇷',name:'Argentina',min:10,max:11},
+  {code:'56',iso:'CL',flag:'🇨🇱',name:'Chile',min:9,max:9},
+  {code:'57',iso:'CO',flag:'🇨🇴',name:'Colômbia',min:10,max:10},
+  {code:'52',iso:'MX',flag:'🇲🇽',name:'México',min:10,max:10}
+];
 
 let tracker={initTracking:()=>{},track:()=>{}};
 try{tracker=await import('./tracking.js');}catch(error){console.warn('Tracking indisponível; quiz continuará funcionando.',error);}
@@ -222,6 +233,48 @@ function optionInputs(q){
   return [...root.querySelectorAll('input[type="radio"],input[type="checkbox"]')].filter(input=>input.dataset.fieldId===q.id);
 }
 
+function phoneParts(value){
+  const raw=String(value||'').trim();
+  const digits=raw.replace(/\D/g,'');
+  const explicitCountry=raw.startsWith('+')||digits.length>11;
+  const country=explicitCountry
+    ?[...PHONE_COUNTRIES].sort((a,b)=>b.code.length-a.code.length).find(item=>digits.startsWith(item.code))||PHONE_COUNTRIES[0]
+    :PHONE_COUNTRIES[0];
+  const national=explicitCountry&&digits.startsWith(country.code)?digits.slice(country.code.length):digits;
+  return {country,national:national.slice(0,country.max)};
+}
+
+function formatNationalPhone(value,countryCode='55'){
+  const country=PHONE_COUNTRIES.find(item=>item.code===countryCode)||PHONE_COUNTRIES[0];
+  const digits=String(value||'').replace(/\D/g,'').slice(0,country.max);
+  if(country.code==='55'){
+    if(digits.length<=2)return digits;
+    const ddd=digits.slice(0,2);
+    const number=digits.slice(2);
+    if(number.length<=4)return `(${ddd}) ${number}`;
+    const first=number.length>8?number.slice(0,5):number.slice(0,4);
+    const last=number.slice(first.length);
+    return `(${ddd}) ${first}${last?`-${last}`:''}`;
+  }
+  if(country.code==='1'){
+    if(digits.length<=3)return digits;
+    if(digits.length<=6)return `(${digits.slice(0,3)}) ${digits.slice(3)}`;
+    return `(${digits.slice(0,3)}) ${digits.slice(3,6)}-${digits.slice(6)}`;
+  }
+  return digits.replace(/(\d{3})(?=\d)/g,'$1 ').trim();
+}
+
+function validPhoneInput(countryCode,value){
+  const country=PHONE_COUNTRIES.find(item=>item.code===countryCode)||PHONE_COUNTRIES[0];
+  const digits=String(value||'').replace(/\D/g,'');
+  if(digits.length<country.min||digits.length>country.max)return false;
+  if(country.code==='55'){
+    if(!/^[1-9]\d/.test(digits))return false;
+    if(digits.length===11&&digits[2]!=='9')return false;
+  }
+  return true;
+}
+
 function syncCurrentField(q,{persist=true}={}){
   if(!q||!RESPONSE_TYPES.has(q.type))return;
 
@@ -239,6 +292,11 @@ function syncCurrentField(q,{persist=true}={}){
     const input=document.getElementById('fieldInput');
     if(input){
       if(q.type==='file')answers[q.id]=input.files?.[0]?.name||answers[q.id]||'';
+      else if(input.dataset.phoneInput==='true'){
+        const country=document.getElementById('phoneCountry')?.value||'55';
+        const national=input.value.replace(/\D/g,'');
+        answers[q.id]=national?`+${country}${national}`:'';
+      }
       else answers[q.id]=input.value;
     }
   }
@@ -280,6 +338,23 @@ function validateCurrent(q){
     showFieldError(message);
     toast(message,'error');
     return false;
+  }
+  const input=document.getElementById('fieldInput');
+  if(input?.type==='email'&&input.value&&!input.validity.valid){
+    const message='Informe um e-mail válido para continuar.';
+    showFieldError(message);
+    toast(message,'error');
+    return false;
+  }
+  if(input?.dataset.phoneInput==='true'){
+    const country=document.getElementById('phoneCountry')?.value||'55';
+    if(!validPhoneInput(country,input.value)){
+      const selected=PHONE_COUNTRIES.find(item=>item.code===country)||PHONE_COUNTRIES[0];
+      const message=`Informe um telefone válido de ${selected.name}, com DDD quando necessário.`;
+      showFieldError(message);
+      toast(message,'error');
+      return false;
+    }
   }
   clearFieldError();
   return true;
@@ -409,13 +484,21 @@ function renderField(q,progress){
   if(q.type==='textarea')return `${title}<div class="quiz-field"><textarea id="fieldInput" placeholder="${escapeHtml(q.placeholder||'')}">${escapeHtml(answers[q.id]||'')}</textarea></div>`;
 
   if(['number','date','input','file'].includes(q.type)){
-    const isLeadName=q.id==='lead_name';
+    const isLeadName=q.id==='lead_name'||/nome|name/i.test(String(q.label||''));
     const isPhone=q.id==='lead_whatsapp'||/whatsapp|telefone|celular/i.test(String(q.label||''));
-    const type=q.type==='input'?(isPhone?'tel':'text'):q.type;
-    const autocomplete=isLeadName?'name':isPhone?'tel':'off';
+    const isEmail=/e[- ]?mail|email/i.test(`${q.id||''} ${q.label||''} ${q.placeholder||''}`);
+    const type=q.type==='input'?(isPhone?'tel':isEmail?'email':'text'):q.type;
+    const autocomplete=isLeadName?'name':isPhone?'tel':isEmail?'email':'off';
     const inputmode=isPhone?' inputmode="tel"':'';
-    const value=q.type==='file'?'':` value="${escapeHtml(answers[q.id]??q.defaultValue??'')}"`;
-    return `${title}<div class="quiz-field"><input id="fieldInput" type="${type}" autocomplete="${autocomplete}"${inputmode}${q.type==='file'?' accept="*/*"':''}${value} placeholder="${escapeHtml(q.placeholder||'')}"></div>`;
+    const savedValue=answers[q.id]??q.defaultValue??'';
+    if(isPhone){
+      const parts=phoneParts(savedValue);
+      const options=PHONE_COUNTRIES.map(country=>`<option value="${country.code}" ${country.code===parts.country.code?'selected':''}>${country.flag} +${country.code} · ${country.name}</option>`).join('');
+      return `${title}<div class="quiz-field quiz-phone-field"><select id="phoneCountry" class="phone-country" aria-label="País do telefone">${options}</select><input id="fieldInput" data-phone-input="true" name="tel" type="tel" autocomplete="tel-national" inputmode="tel" maxlength="20" value="${escapeHtml(formatNationalPhone(parts.national,parts.country.code))}" placeholder="${escapeHtml(q.placeholder||'Telefone com DDD')}"></div><small class="phone-field-hint">Selecione o país e informe um número válido.</small>`;
+    }
+    const value=q.type==='file'?'':` value="${escapeHtml(savedValue)}"`;
+    const name=isEmail?'email':isLeadName?'name':'response';
+    return `${title}<div class="quiz-field"><input id="fieldInput" name="${name}" type="${type}" autocomplete="${autocomplete}"${inputmode}${isEmail?' inputmode="email" autocapitalize="none" spellcheck="false"':''}${q.type==='file'?' accept="*/*"':''}${value} placeholder="${escapeHtml(q.placeholder||'')}"></div>`;
   }
 
   if(q.type==='rating')return `${title}<div class="rating">${Array.from({length:(q.max||5)},(_,i)=>i+1).map(n=>`<button type="button" data-rating="${n}" class="${Number(answers[q.id])>=n?'active':''}">★</button>`).join('')}</div>`;
@@ -474,6 +557,10 @@ function bindField(q){
   const input=document.getElementById('fieldInput');
   if(input){
     const sync=()=>{
+      if(input.dataset.phoneInput==='true'){
+        const country=document.getElementById('phoneCountry')?.value||'55';
+        input.value=formatNationalPhone(input.value,country);
+      }
       syncCurrentField(q,{persist:true});
       const valueLabel=document.getElementById('rangeValue');
       if(valueLabel)valueLabel.textContent=input.value;
@@ -487,6 +574,12 @@ function bindField(q){
         event.preventDefault();
         void advance(q);
       }
+    };
+    const country=document.getElementById('phoneCountry');
+    if(country)country.onchange=()=>{
+      input.value=formatNationalPhone(input.value,country.value);
+      sync();
+      input.focus();
     };
   }
 
