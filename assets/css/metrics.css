@@ -1,0 +1,115 @@
+.metric-filter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+  padding: 14px 16px;
+}
+
+.metric-filter-copy strong,
+.metric-filter-copy small {
+  display: block;
+}
+
+.metric-filter-copy strong {
+  font-size: 13px;
+}
+
+.metric-filter-copy small,
+.metric-note {
+  color: var(--muted);
+}
+
+.metric-filter-copy small {
+  margin-top: 3px;
+}
+
+.metric-periods {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+
+.metric-period {
+  border: 1px solid var(--border);
+  background: #fff;
+  color: var(--text);
+  border-radius: 9px;
+  padding: 8px 11px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.metric-period:hover {
+  border-color: var(--secondary);
+}
+
+.metric-period.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+.metric-date {
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 7px 9px;
+  font: inherit;
+  color: var(--text);
+  background: #fff;
+}
+
+.stats-grid.metric-stats {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.metric-note {
+  margin: 12px 0 0;
+  font-size: 11px;
+}
+
+.metric-chart-scroll {
+  overflow-x: auto;
+  padding-bottom: 3px;
+}
+
+.metric-chart-scroll .chart-list {
+  min-width: 520px;
+}
+
+.status-pill.incomplete {
+  background: #fff7ed;
+  color: #c2410c;
+}
+
+@media (max-width: 1100px) {
+  .stats-grid.metric-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .metric-filter {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .metric-periods {
+    width: 100%;
+  }
+
+  .metric-period {
+    flex: 1 1 auto;
+  }
+
+  .metric-date,
+  .stats-grid.metric-stats {
+    width: 100%;
+  }
+
+  .stats-grid.metric-stats {
+    grid-template-columns: 1fr;
+  }
+}

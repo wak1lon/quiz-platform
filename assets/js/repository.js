@@ -34,6 +34,20 @@ function mergeById(cloudItems=[],localItems=[]){
   return [...map.values()];
 }
 
+function completedSubmission(submission){
+  return submission?.attemptStatus==='completed'||(submission?.attemptStatus!=='started'&&submission?.completed===true);
+}
+
+function completedSubmissions(submissions=[]){
+  const seen=new Set();
+  return submissions.filter(submission=>{
+    const key=submission?.attemptId||submission?.id;
+    if(!completedSubmission(submission)||seen.has(key))return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 async function loadFirebase(){
   const firebase=await withTimeout(getFirebase(),'Inicialização do Firebase');
   if(!firebase)throw new Error('Firebase não está disponível.');
@@ -58,8 +72,8 @@ export async function listQuizzes({admin=false,includeSubmissions=false}={}){
           const submissionsSnapshot=await withTimeout(f.getDocs(submissionsRef),`Respostas de ${quiz.title||quiz.id}`,10000);
           quiz.submissions=submissionsSnapshot.docs.map(doc=>({id:doc.id,...doc.data()})).sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
           quiz.statistics=quiz.statistics||{};
-          quiz.statistics.totalResponses=quiz.submissions.filter(s=>s.completed).length;
-          const completed=quiz.submissions.filter(s=>s.completed);
+          const completed=completedSubmissions(quiz.submissions);
+          quiz.statistics.totalResponses=completed.length;
           quiz.statistics.averageScore=completed.length?Math.round(completed.reduce((sum,item)=>sum+(Number(item.score)||0),0)/completed.length):0;
         }catch(error){
           quiz.submissions=Array.isArray(quiz.submissions)?quiz.submissions:[];

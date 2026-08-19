@@ -16,13 +16,20 @@ export function removeQuiz(id){const state=getState();state.quizzes=state.quizze
 function refreshSubmissionStats(q){
   q.submissions=Array.isArray(q.submissions)?q.submissions:[];
   q.statistics=q.statistics||{};
-  const completed=q.submissions.filter(s=>s.completed);
+  const seen=new Set();
+  const completed=q.submissions.filter(submission=>{
+    const isCompleted=submission.attemptStatus==='completed'||(submission.attemptStatus!=='started'&&submission.completed===true);
+    const key=submission.attemptId||submission.id;
+    if(!isCompleted||seen.has(key))return false;
+    seen.add(key);
+    return true;
+  });
   q.statistics.totalResponses=completed.length;
   q.statistics.averageScore=completed.length?Math.round(completed.reduce((sum,s)=>sum+(Number(s.score)||0),0)/completed.length):0;
   q.statistics.updatedAt=new Date().toISOString();
 }
 
-export function addSubmission(quizId,submission){const state=getState();const q=state.quizzes.find(x=>x.id===quizId);if(!q)return null;q.submissions=q.submissions||[];q.submissions.unshift(deepClone(submission));refreshSubmissionStats(q);saveState(state);return submission;}
+export function addSubmission(quizId,submission){const state=getState();const q=state.quizzes.find(x=>x.id===quizId);if(!q)return null;q.submissions=q.submissions||[];const next=deepClone(submission);const index=q.submissions.findIndex(item=>item.id===next.id);if(index>=0)q.submissions[index]=next;else q.submissions.unshift(next);q.submissions.sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||'')));refreshSubmissionStats(q);saveState(state);return submission;}
 export function removeSubmission(quizId,submissionId){const state=getState();const q=state.quizzes.find(x=>x.id===quizId);if(!q)return false;q.submissions=(q.submissions||[]).filter(s=>s.id!==submissionId);refreshSubmissionStats(q);saveState(state);return true;}
 export function clearSubmissions(quizId){const state=getState();const q=state.quizzes.find(x=>x.id===quizId);if(!q)return false;q.submissions=[];refreshSubmissionStats(q);saveState(state);return true;}
 export function incrementView(quizId){const state=getState();const q=state.quizzes.find(x=>x.id===quizId);if(!q)return;q.statistics=q.statistics||{};q.statistics.totalViews=(Number(q.statistics.totalViews)||0)+1;q.statistics.updatedAt=new Date().toISOString();saveState(state);}
