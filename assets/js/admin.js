@@ -2,7 +2,7 @@ const parts=[
   'admin-parts/part01.txt','admin-parts/part02.txt','admin-parts/part03.txt','admin-parts/part04.txt',
   'admin-parts/part05.txt','admin-parts/part06.txt','admin-parts/part07.txt','admin-parts/part08.txt',
   'admin-parts/part09.txt','admin-parts/part10.txt','admin-parts/part11.txt','admin-parts/part12.txt',
-  'admin-parts/part13.txt'
+  'admin-parts/part13.txt','admin-parts/part14.txt'
 ];
 
 const content=document.getElementById('appContent');

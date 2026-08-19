@@ -1,0 +1,317 @@
+let __dashboardPeriod='7d';
+let __dashboardSpecificDate=__localDateKey(new Date());
+let __resultsPeriod='7d';
+let __resultsSpecificDate=__localDateKey(new Date());
+
+function __localDateKey(value){
+  const date=value instanceof Date?value:new Date(value);
+  if(Number.isNaN(date.getTime()))return '';
+  const pad=number=>String(number).padStart(2,'0');
+  return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}`;
+}
+
+function __dateFromKey(key){
+  const match=/^(\d{4})-(\d{2})-(\d{2})$/.exec(String(key||''));
+  if(!match)return null;
+  const date=new Date(Number(match[1]),Number(match[2])-1,Number(match[3]));
+  return Number.isNaN(date.getTime())?null:date;
+}
+
+function __periodBounds(period,specificDate){
+  if(period==='all')return {start:null,end:null};
+  const today=new Date();
+  today.setHours(0,0,0,0);
+  let start=new Date(today);
+  let end=new Date(today);
+  end.setDate(end.getDate()+1);
+
+  if(period==='yesterday'){
+    start.setDate(start.getDate()-1);
+    end=new Date(today);
+  }else if(period==='7d'){
+    start.setDate(start.getDate()-6);
+  }else if(period==='30d'){
+    start.setDate(start.getDate()-29);
+  }else if(period==='specific'){
+    start=__dateFromKey(specificDate)||today;
+    end=new Date(start);
+    end.setDate(end.getDate()+1);
+  }
+
+  return {start,end};
+}
+
+function __periodLabel(period,specificDate){
+  if(period==='today')return 'Hoje';
+  if(period==='yesterday')return 'Ontem';
+  if(period==='7d')return 'Últimos 7 dias';
+  if(period==='30d')return 'Últimos 30 dias';
+  if(period==='specific'){
+    const date=__dateFromKey(specificDate);
+    return date?date.toLocaleDateString('pt-BR'):'Data específica';
+  }
+  return 'Máximo (todo o período)';
+}
+
+function __submissionCompleted(submission){
+  if(submission?.attemptStatus==='started')return false;
+  if(submission?.attemptStatus==='completed')return true;
+  return submission?.completed===true;
+}
+
+function __normalizeAttempts(submissions=[]){
+  const groups=new Map();
+  for(const submission of submissions){
+    if(!submission?.id)continue;
+    const key=submission.attemptId||submission.id;
+    const previous=groups.get(key);
+    if(!previous){
+      groups.set(key,{record:{...submission},documentIds:[submission.id]});
+      continue;
+    }
+
+    if(!previous.documentIds.includes(submission.id))previous.documentIds.push(submission.id);
+    const previousCreatedAt=previous.record.createdAt;
+    const previousCompleted=__submissionCompleted(previous.record);
+    const candidateCompleted=__submissionCompleted(submission);
+    if(candidateCompleted&&!previousCompleted)previous.record={...submission};
+    else if(candidateCompleted===previousCompleted){
+      const previousUpdated=new Date(previous.record.updatedAt||previous.record.completedAt||previous.record.createdAt||0).getTime();
+      const candidateUpdated=new Date(submission.updatedAt||submission.completedAt||submission.createdAt||0).getTime();
+      if(candidateUpdated>=previousUpdated)previous.record={...submission};
+    }
+
+    const dates=[previousCreatedAt,submission.createdAt].filter(Boolean).sort();
+    if(dates.length)previous.record.createdAt=dates[0];
+  }
+
+  return [...groups.values()].map(group=>({...group.record,_documentIds:group.documentIds})).sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
+}
+
+function __attemptInPeriod(attempt,period,specificDate){
+  const {start,end}=__periodBounds(period,specificDate);
+  if(!start&&!end)return true;
+  const timestamp=new Date(attempt.createdAt||attempt.startedAt||attempt.updatedAt||0).getTime();
+  if(Number.isNaN(timestamp))return false;
+  return timestamp>=start.getTime()&&timestamp<end.getTime();
+}
+
+function __quizPeriodData(quiz,period,specificDate){
+  const allAttempts=__normalizeAttempts(Array.isArray(quiz?.submissions)?quiz.submissions:[]);
+  const attempts=allAttempts.filter(attempt=>__attemptInPeriod(attempt,period,specificDate));
+  const completed=attempts.filter(__submissionCompleted);
+  const starts=attempts.length;
+  const responses=completed.length;
+  const abandoned=Math.max(0,starts-responses);
+  const completion=starts?Math.round((responses/starts)*100):0;
+  const averageScore=responses?Math.round(completed.reduce((sum,item)=>sum+(Number(item.score)||0),0)/responses):0;
+  return {allAttempts,attempts,completed,starts,responses,abandoned,completion,averageScore};
+}
+
+function __periodFilterMarkup(period,specificDate){
+  const options=[['today','Hoje'],['yesterday','Ontem'],['7d','7 dias'],['30d','30 dias'],['all','Máximo'],['specific','Data específica']];
+  return `<div class="card metric-filter">
+    <div class="metric-filter-copy"><strong>Período das métricas</strong><small>${escapeHtml(__periodLabel(period,specificDate))} · horário local</small></div>
+    <div class="metric-periods">
+      ${options.map(([value,label])=>`<button type="button" class="metric-period ${period===value?'active':''}" data-metric-period="${value}">${label}</button>`).join('')}
+      ${period==='specific'?`<input class="metric-date" type="date" data-metric-date value="${escapeHtml(specificDate)}" aria-label="Escolher data específica">`:''}
+    </div>
+  </div>`;
+}
+
+function __bindPeriodFilter(scope,onChange){
+  scope.querySelectorAll('[data-metric-period]').forEach(button=>button.onclick=()=>onChange(button.dataset.metricPeriod,null));
+  const dateInput=scope.querySelector('[data-metric-date]');
+  if(dateInput)dateInput.onchange=()=>onChange('specific',dateInput.value||__localDateKey(new Date()));
+}
+
+function __daySeries(period,specificDate,attempts){
+  const selectedBounds=__periodBounds(period,specificDate);
+  let length=period==='7d'?7:period==='30d'||period==='all'?30:1;
+  let start;
+  if(period==='all'){
+    start=new Date();
+    start.setHours(0,0,0,0);
+    start.setDate(start.getDate()-(length-1));
+  }else{
+    start=new Date(selectedBounds.start||new Date());
+  }
+  const days=Array.from({length},(_,index)=>{
+    const date=new Date(start);
+    date.setDate(date.getDate()+index);
+    const key=__localDateKey(date);
+    const count=attempts.filter(attempt=>__submissionCompleted(attempt)&&__localDateKey(attempt.completedAt||attempt.createdAt)===key).length;
+    return {key,label:date.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}),count};
+  });
+  return days;
+}
+
+function __periodAnswerValue(field,value){
+  const labelFor=item=>{
+    const option=(field.options||[]).find(candidate=>String(candidate.value)===String(item));
+    return option?.label??item??'';
+  };
+  if(Array.isArray(value))return value.map(labelFor).join(' | ');
+  if(value&&typeof value==='object')return JSON.stringify(value);
+  return labelFor(value);
+}
+
+function __exportPeriodResults(quiz,attempts,period,specificDate){
+  const responseFields=(quiz.questions||[]).filter(field=>RESPONSE_TYPES.has(field.type));
+  const headers=['ID da tentativa','Início','Conclusão','Score','Status','Duração (s)',...responseFields.map(field=>field.label||field.id)];
+  const rows=[headers,...attempts.map(attempt=>[
+    attempt.attemptId||attempt.id||'',
+    attempt.createdAt||attempt.startedAt||'',
+    attempt.completedAt||'',
+    __submissionCompleted(attempt)?attempt.score??0:'',
+    __submissionCompleted(attempt)?'Concluído':'Abandono',
+    attempt.durationSeconds??'',
+    ...responseFields.map(field=>__periodAnswerValue(field,attempt.answers?.[field.id]))
+  ])];
+  const suffix=period==='specific'?(specificDate||'data'):period;
+  const csv='\uFEFF'+rows.map(row=>row.map(csvEscape).join(';')).join('\r\n');
+  download(`${slugify(quiz.title||'quiz')}-${suffix}-resultados.csv`,csv,'text/csv;charset=utf-8');
+}
+
+renderDashboard=function(){
+  const rows=quizzes.map(quiz=>({quiz,data:__quizPeriodData(quiz,__dashboardPeriod,__dashboardSpecificDate)}));
+  const attempts=rows.flatMap(row=>row.data.attempts);
+  const completed=attempts.filter(__submissionCompleted);
+  const totals={
+    starts:attempts.length,
+    responses:completed.length,
+    abandoned:Math.max(0,attempts.length-completed.length)
+  };
+  totals.completion=totals.starts?Math.round((totals.responses/totals.starts)*100):0;
+  totals.averageScore=totals.responses?Math.round(completed.reduce((sum,item)=>sum+(Number(item.score)||0),0)/totals.responses):0;
+
+  const recent=[...rows].sort((a,b)=>String(b.quiz.statistics?.updatedAt||'').localeCompare(String(a.quiz.statistics?.updatedAt||''))).slice(0,5);
+  const popular=[...rows].sort((a,b)=>b.data.starts-a.data.starts).slice(0,5);
+  const chartAttempts=__dashboardPeriod==='all'?rows.flatMap(row=>row.data.allAttempts):attempts;
+  const days=__daySeries(__dashboardPeriod,__dashboardSpecificDate,chartAttempts);
+  const maxCount=Math.max(1,...days.map(day=>day.count));
+  const chartTitle=__dashboardPeriod==='all'?'Respostas · últimos 30 dias':`Respostas · ${__periodLabel(__dashboardPeriod,__dashboardSpecificDate)}`;
+
+  content.innerHTML=`
+    ${__periodFilterMarkup(__dashboardPeriod,__dashboardSpecificDate)}
+    <div class="stats-grid metric-stats">
+      ${[
+        ['Inícios registrados',totals.starts],
+        ['Respostas concluídas',totals.responses],
+        ['Taxa de conclusão',`${totals.completion}%`],
+        ['Abandonos',totals.abandoned],
+        ['Média de score',`${totals.averageScore}%`]
+      ].map(([label,value])=>`<article class="card stat-card"><div class="stat-value">${value}</div><div class="stat-label">${label}</div></article>`).join('')}
+    </div>
+    <p class="metric-note">Abandonos reais são contabilizados pelas tentativas registradas a partir desta atualização; períodos anteriores não podem ser reconstruídos.</p>
+    <div class="dashboard-grid">
+      <section class="card card-pad"><div class="section-head"><div><h2>Quizzes no período</h2><p>${escapeHtml(__periodLabel(__dashboardPeriod,__dashboardSpecificDate))}</p></div><button class="btn btn-sm btn-secondary" data-go="quizzes">Ver todos</button></div><div class="list">${recent.length?recent.map(({quiz,data})=>`<div class="list-row"><div><strong>${escapeHtml(quiz.title)}</strong><small>${data.responses} resposta(s) · ${data.completion}% conclusão · ${data.abandoned} abandono(s)</small></div><button class="btn btn-sm btn-ghost" data-edit="${quiz.id}">Editar</button></div>`).join(''):'<div class="empty">Nenhum quiz criado.</div>'}</div></section>
+      <section class="card card-pad"><h2 style="margin:0;font-size:16px">${escapeHtml(chartTitle)}</h2><div class="metric-chart-scroll"><div class="chart-list">${days.map(day=>`<div class="chart-col" title="${day.count} resposta(s)"><span style="height:${day.count?Math.max(8,(day.count/maxCount)*120):2}px"></span><small>${day.label}</small></div>`).join('')}</div></div></section>
+      <section class="card card-pad"><h2 style="margin:0 0 6px;font-size:16px">Quizzes com mais inícios</h2><div class="list">${popular.length?popular.map(({quiz,data})=>`<div class="list-row"><div><strong>★ ${escapeHtml(quiz.title)}</strong><small>${data.starts} início(s) · ${data.responses} conclusão(ões)</small></div><div style="width:110px"><div class="bar"><span style="width:${Math.min(100,(data.starts/Math.max(1,...popular.map(item=>item.data.starts)))*100)}%"></span></div></div></div>`).join(''):'<div class="empty">Nenhum quiz criado.</div>'}</div></section>
+      <section class="card card-pad"><h2 style="margin:0 0 12px;font-size:16px">Atalhos</h2><div class="actions"><button class="btn btn-primary" data-new>+ Novo Quiz</button><button class="btn btn-secondary" data-go="templates">Usar template</button><button class="btn btn-secondary" data-go="results">Ver resultados</button></div></section>
+    </div>`;
+
+  __bindPeriodFilter(content,(period,specificDate)=>{
+    __dashboardPeriod=period;
+    if(specificDate)__dashboardSpecificDate=specificDate;
+    renderDashboard();
+  });
+  bindCommonActions();
+};
+
+renderResults=function(){
+  const current=quizzes[0];
+  content.innerHTML=`<div class="section-head"><div><h2>Resultados e estatísticas</h2><p>Filtre tentativas, conclusões e abandonos por período.</p></div><select id="resultQuizSelect" class="btn btn-secondary">${quizzes.map(quiz=>`<option value="${quiz.id}">${escapeHtml(quiz.title)}</option>`).join('')}</select></div><div id="resultBody"></div>`;
+  const select=document.getElementById('resultQuizSelect');
+
+  const draw=()=>{
+    const quiz=quizzes.find(item=>item.id===select?.value)||current;
+    const body=document.getElementById('resultBody');
+    if(!quiz){body.innerHTML='<div class="card empty">Nenhum quiz disponível.</div>';return;}
+
+    const data=__quizPeriodData(quiz,__resultsPeriod,__resultsSpecificDate);
+    const rawSubmissions=Array.isArray(quiz.submissions)?quiz.submissions:[];
+    const byQuestion=(quiz.questions||[]).filter(field=>OPTION_TYPES.has(field.type)).map(field=>{
+      const counts={};
+      data.completed.forEach(submission=>{
+        const value=submission.answers?.[field.id];
+        (Array.isArray(value)?value:[value]).filter(item=>item!==undefined&&item!==null&&item!=='').forEach(item=>counts[item]=(counts[item]||0)+1);
+      });
+      return {field,counts};
+    });
+
+    body.innerHTML=`
+      ${__periodFilterMarkup(__resultsPeriod,__resultsSpecificDate)}
+      <div class="stats-grid metric-stats">
+        <article class="card stat-card"><div class="stat-value">${data.starts}</div><div class="stat-label">Inícios registrados</div></article>
+        <article class="card stat-card"><div class="stat-value">${data.responses}</div><div class="stat-label">Respostas concluídas</div></article>
+        <article class="card stat-card"><div class="stat-value">${data.completion}%</div><div class="stat-label">Taxa de conclusão</div></article>
+        <article class="card stat-card"><div class="stat-value">${data.abandoned}</div><div class="stat-label">Abandonos</div></article>
+        <article class="card stat-card"><div class="stat-value">${data.averageScore}%</div><div class="stat-label">Média de score</div></article>
+      </div>
+      <p class="metric-note">Os números acima e a tabela abaixo usam somente o período selecionado.</p>
+      <div class="dashboard-grid">
+        <section class="card card-pad">
+          <div class="section-head"><div><h2>Respostas por pergunta</h2><p>Somente preenchimentos concluídos</p></div></div>
+          ${byQuestion.length?byQuestion.map(({field,counts})=>`<div style="margin-bottom:18px"><strong style="font-size:13px">${escapeHtml(field.label)}</strong>${(field.options||[]).map(option=>{const count=counts[option.value]||0;const percentage=data.responses?Math.round(count/data.responses*100):0;return `<div style="margin-top:8px"><div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted)"><span>${escapeHtml(option.label)}</span><span>${count} · ${percentage}%</span></div><div class="bar"><span style="width:${percentage}%"></span></div></div>`;}).join('')}</div>`).join(''):'<p class="muted">Sem perguntas de opções.</p>'}
+        </section>
+        <section class="card card-pad">
+          <div class="section-head"><div><h2>Exportação</h2><p>${data.attempts.length} registro(s) no período</p></div></div>
+          <div class="actions">
+            <button class="btn btn-secondary" id="exportCsv">Exportar período para CSV / Excel</button>
+            ${rawSubmissions.length?'<button class="btn btn-danger" id="clearResponses">Apagar todos os registros do quiz</button>':''}
+          </div>
+          <div class="code-box" style="margin-top:12px">A exportação inclui o status de conclusão ou abandono e usa o nome de cada opção selecionada.</div>
+        </section>
+      </div>
+      <section class="card card-pad" style="margin-top:18px">
+        <div class="section-head"><div><h2>Tentativas no período</h2><p>${data.attempts.length} registro(s)</p></div></div>
+        <div style="overflow:auto">
+          <table class="result-table">
+            <thead><tr><th>Identificação</th><th>Score</th><th>Início</th><th>Status</th><th>Ações</th></tr></thead>
+            <tbody>${data.attempts.length?data.attempts.map(attempt=>{const completed=__submissionCompleted(attempt);const shortId=String(attempt.attemptId||attempt.id).slice(-8);const identity=attempt.answers?.lead_name||attempt.answers?.name||attempt.answers?.nome||(completed?`Tentativa ${shortId}`:`Abandono ${shortId}`);return `<tr><td>${escapeHtml(identity)}</td><td>${completed?`${attempt.score??0}%`:'—'}</td><td>${formatDate(attempt.createdAt||attempt.startedAt)}</td><td><span class="status-pill ${completed?'success':'incomplete'}">${completed?'Concluído':'Abandono'}</span></td><td><button class="btn btn-sm btn-danger" data-delete-attempt="${escapeHtml(attempt.attemptId||attempt.id)}">Apagar</button></td></tr>`;}).join(''):'<tr><td colspan="5">Nenhuma tentativa neste período.</td></tr>'}</tbody>
+          </table>
+        </div>
+      </section>`;
+
+    __bindPeriodFilter(body,(period,specificDate)=>{
+      __resultsPeriod=period;
+      if(specificDate)__resultsSpecificDate=specificDate;
+      draw();
+    });
+
+    document.getElementById('exportCsv')?.addEventListener('click',()=>__exportPeriodResults(quiz,data.attempts,__resultsPeriod,__resultsSpecificDate));
+
+    body.querySelectorAll('[data-delete-attempt]').forEach(button=>button.onclick=async()=>{
+      const attempt=data.attempts.find(item=>String(item.attemptId||item.id)===button.dataset.deleteAttempt);
+      if(!attempt||!confirm('Apagar esta tentativa permanentemente?'))return;
+      button.disabled=true;
+      try{
+        const documentIds=attempt._documentIds||[attempt.id];
+        for(const documentId of documentIds)await __resultsRepo.deleteSubmission(quiz.id,documentId);
+        quiz.submissions=rawSubmissions.filter(item=>!documentIds.includes(item.id));
+        toast('Tentativa apagada.','success');
+        draw();
+      }catch(error){
+        button.disabled=false;
+        toast(error?.message||'Não foi possível apagar a tentativa.','error');
+      }
+    });
+
+    document.getElementById('clearResponses')?.addEventListener('click',async()=>{
+      if(!confirm(`Apagar permanentemente todos os ${rawSubmissions.length} registros deste quiz?`))return;
+      try{
+        await __resultsRepo.clearSubmissions(quiz.id);
+        quiz.submissions=[];
+        toast('Todos os registros foram apagados.','success');
+        draw();
+      }catch(error){
+        toast(error?.message||'Não foi possível apagar todos os registros.','error');
+      }
+    });
+  };
+
+  if(current&&select)select.value=current.id;
+  select?.addEventListener('change',draw);
+  draw();
+};

@@ -25,6 +25,9 @@ let timer=null;
 let finished=false;
 let busy=false;
 let consentChecked=false;
+let attemptId=null;
+let attemptCreatedAt=null;
+let attemptSavePromise=null;
 
 try{quiz=await getQuizBySlug(slug);}catch(error){console.error('Falha ao carregar quiz.',error);}
 if(!quiz){
@@ -40,8 +43,11 @@ trackSafe('quiz_view',{quiz_id:quiz.id,quiz_slug:quiz.slug});
 const attemptsKey=`qp_attempts_${quiz.id}`;
 restoreProgress();
 if(maxAttemptsReached())renderAttemptLimit();
-else if(quiz.settings?.showWelcome===false)startQuiz();
-else renderWelcome();
+else{
+  void beginAttempt();
+  if(quiz.settings?.showWelcome===false)startQuiz();
+  else renderWelcome();
+}
 
 function trackSafe(event,params={}){
   try{tracker.track(event,params);}catch(error){console.warn('Evento de tracking ignorado.',error);}
@@ -85,6 +91,33 @@ function renderWelcome(){
   root.innerHTML=wrap(`<div class="quiz-question"><span class="eyebrow">${escapeHtml(quiz.category||'QUIZ')}</span><h1 style="font-size:${quiz.design?.titleSize||32}px;font-weight:${quiz.design?.titleWeight||700}">${escapeHtml(quiz.title)}</h1><p>${escapeHtml(quiz.messages?.welcome||quiz.description||'Clique para iniciar.')}</p><button type="button" id="startQuiz" class="btn btn-primary" style="background:${quiz.design?.buttonBackground||'var(--primary)'};color:${quiz.design?.buttonText||'#fff'};border-radius:${quiz.design?.buttonRadius||10}px">Iniciar Quiz</button></div>`);
   const start=document.getElementById('startQuiz');
   if(start)start.onclick=startQuiz;
+}
+
+function beginAttempt(){
+  if(!attemptId)attemptId=uid('attempt');
+  if(!attemptCreatedAt)attemptCreatedAt=new Date().toISOString();
+  const submission={
+    id:`${attemptId}_start`,
+    attemptId,
+    attemptStatus:'started',
+    trackingVersion:2,
+    answers:{},
+    score:0,
+    // Compatibilidade com as regras públicas atuais do Firestore.
+    // O painel usa attemptStatus para distinguir início de conclusão.
+    completed:true,
+    startedAt:new Date(startedAt).toISOString(),
+    createdAt:attemptCreatedAt,
+    updatedAt:new Date().toISOString(),
+    durationSeconds:0,
+    userAgent:navigator.userAgent
+  };
+  attemptSavePromise=saveSubmission(quiz,submission).catch(error=>{
+    console.warn('Início da tentativa não pôde ser sincronizado.',error);
+    return null;
+  });
+  autoSave();
+  return attemptSavePromise;
 }
 
 function startQuiz(){
@@ -485,7 +518,7 @@ function bindField(q){
 function autoSave(){
   if(!quiz.settings?.autoSave)return;
   try{
-    localStorage.setItem(`qp_progress_${quiz.id}`,JSON.stringify({answers,currentId,history,consentChecked,updatedAt:new Date().toISOString()}));
+    localStorage.setItem(`qp_progress_${quiz.id}`,JSON.stringify({answers,currentId,history,consentChecked,attemptId,attemptCreatedAt,startedAt:new Date(startedAt).toISOString(),updatedAt:new Date().toISOString()}));
   }catch(error){console.warn('Progresso local não pôde ser salvo.',error);}
 }
 
@@ -497,6 +530,9 @@ function restoreProgress(){
     if(saved?.currentId)currentId=saved.currentId;
     if(Array.isArray(saved?.history))history=saved.history;
     consentChecked=saved?.consentChecked===true;
+    if(saved?.attemptId)attemptId=saved.attemptId;
+    if(saved?.attemptCreatedAt)attemptCreatedAt=saved.attemptCreatedAt;
+    if(saved?.startedAt&&!Number.isNaN(new Date(saved.startedAt).getTime()))startedAt=new Date(saved.startedAt).getTime();
   }catch{}
 }
 
@@ -564,13 +600,21 @@ async function finish({requireConsent=true}={}){
   if(timer){clearInterval(timer);timer=null;}
 
   const score=scoreQuiz();
+  if(!attemptId)await beginAttempt();
+  else if(attemptSavePromise)await attemptSavePromise;
+  const completedAt=new Date().toISOString();
   const submission={
-    id:uid('sub'),
+    id:`${attemptId}_${uid('complete')}`,
+    attemptId,
+    attemptStatus:'completed',
+    trackingVersion:2,
     answers:{...answers},
     score,
     completed:true,
     startedAt:new Date(startedAt).toISOString(),
-    createdAt:new Date().toISOString(),
+    createdAt:attemptCreatedAt||completedAt,
+    completedAt,
+    updatedAt:completedAt,
     durationSeconds:Math.max(0,Math.round((Date.now()-startedAt)/1000)),
     userAgent:navigator.userAgent
   };
@@ -655,7 +699,11 @@ function retryQuiz(){
   finished=false;
   busy=false;
   startedAt=Date.now();
+  attemptId=null;
+  attemptCreatedAt=null;
+  attemptSavePromise=null;
   clearProgress();
+  void beginAttempt();
   if(quiz.settings?.showWelcome===false)startQuiz();
   else renderWelcome();
 }
