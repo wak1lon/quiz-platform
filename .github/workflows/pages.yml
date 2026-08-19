@@ -34,6 +34,7 @@ jobs:
             --exclude 'firebase.json' \
             --exclude 'README.md' \
             --exclude '.gitignore'
+          awk 'FNR == 1 && NR != 1 { print "" } { print }' assets/js/admin-parts/part*.txt > _site/assets/js/admin-bundle.js
       - name: Configure Pages
         uses: actions/configure-pages@v5
       - name: Upload artifact

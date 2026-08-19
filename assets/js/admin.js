@@ -22,9 +22,21 @@ async function loadPart(path){
   return text;
 }
 
+async function loadAdminSource(){
+  try{
+    const response=await fetch(new URL('admin-bundle.js',import.meta.url),{cache:'no-cache'});
+    if(response.ok){
+      const bundled=await response.text();
+      if(bundled.trim())return bundled;
+    }
+  }catch(error){
+    console.warn('Bundle administrativo indisponível; carregando módulos separados.',error);
+  }
+  return (await Promise.all(parts.map(loadPart))).join('\n');
+}
+
 try{
-  const sources=await Promise.all(parts.map(loadPart));
-  const source=sources.join('\n');
+  const source=await loadAdminSource();
   const moduleUrl=URL.createObjectURL(new Blob([source],{type:'text/javascript'}));
   try{
     await import(moduleUrl);
