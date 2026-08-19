@@ -3,12 +3,23 @@ import { getFirebase, firebaseEnabled } from './firebase.js';
 import { deepClone } from './utils.js';
 
 const FIREBASE_TIMEOUT_MS=12000;
+const FIRESTORE_SAFE_QUIZ_BYTES=850000;
+
+function quizPayloadBytes(payload){
+  const json=JSON.stringify(payload);
+  if(typeof TextEncoder!=='undefined')return new TextEncoder().encode(json).length;
+  return new Blob([json]).size;
+}
 
 export async function storageMode(){return firebaseEnabled()?'Firebase':'Local';}
 
 function cloudQuizPayload(quiz){
   const copy=deepClone(quiz);
   delete copy.submissions;
+  const bytes=quizPayloadBytes(copy);
+  if(bytes>FIRESTORE_SAFE_QUIZ_BYTES&&firebaseEnabled()){
+    throw new Error(`As imagens deixaram o quiz muito pesado para publicação (${Math.round(bytes/1024)} KB). Remova ou troque uma imagem e tente novamente.`);
+  }
   return copy;
 }
 

@@ -87,7 +87,7 @@ export function blankQuiz() {
     settings:{ showWelcome:true, showProgress:true, showQuestionNumber:true, allowBack:true, autoSave:true, timeLimit:null, limitByIp:false, maxAttempts:3, thankYouMessage:'Obrigado por responder!' },
     messages:{ welcome:'Bem-vindo! Responda às perguntas para ver seu resultado.', requiredError:'Selecione ou preencha uma resposta para continuar.', completion:'Quiz concluído com sucesso.', timeout:'O tempo do quiz terminou.', attemptLimit:'Você atingiu o limite de tentativas.' },
     resultSettings:{ showPercentage:true, showCorrectAnswers:false, showFeedback:true, redirectUrl:'', emailResult:false, resultEmail:'' },
-    design:{ primaryColor:'#1E3A8A', secondaryColor:'#3B82F6', backgroundColor:'#F3F4F6', textColor:'#1F2937', accentColor:'#F59E0B', successColor:'#10B981', errorColor:'#EF4444', fontFamily:'Poppins', titleFont:'Poppins', titleSize:32, titleWeight:700, bodySize:16, bodyWeight:400, logo:'', favicon:'', backgroundImage:'', backgroundPattern:'', buttonBackground:'#1E3A8A', buttonText:'#FFFFFF', buttonRadius:10, buttonShadow:true, cardBackground:'#FFFFFF', cardShadow:true, cardRadius:18, cardPadding:32 },
+    design:{ primaryColor:'#1E3A8A', secondaryColor:'#3B82F6', backgroundColor:'#F3F4F6', textColor:'#1F2937', accentColor:'#F59E0B', successColor:'#10B981', errorColor:'#EF4444', fontFamily:'Poppins', titleFont:'Poppins', titleSize:32, titleWeight:700, bodySize:16, bodyWeight:400, logo:'', favicon:'', profileImage:'', backgroundImage:'', backgroundPattern:'', buttonBackground:'#1E3A8A', buttonText:'#FFFFFF', buttonRadius:10, buttonShadow:true, cardBackground:'#FFFFFF', cardShadow:true, cardRadius:18, cardPadding:32 },
     integrations:{ gtmId:'', gtmEnabled:false, fbPixelId:'', fbPixelEnabled:false, gaId:'', gaEnabled:false, emailTo:'', emailSubject:'Nova resposta do quiz', webhookUrl:'', webhookMethod:'POST', webhookHeaders:'{}', whatsappNumber:'', whatsappMessage:'Olá! Acabei de responder o quiz.' },
     questions:[makeQuestion('radio','Qual opção melhor descreve você?')],
     results:[{ id:uid('result'), minScore:0, maxScore:100, title:'Resultado', message:'Obrigado por concluir o quiz.', badge:'🏆', action:{ type:'whatsapp', value:'', label:'Falar com Especialista' } }],
@@ -143,3 +143,4 @@ export const TEMPLATES = [
   templateFrom('Quiz de Saúde','Questionário informativo com campos variados.','🏥','Saúde',[makeQuestion('radio','Selecione uma opção'),makeQuestion('number','Informe um valor'),makeQuestion('textarea','Observações')]),
   templateFrom('Quiz Gamer','Experiência leve com opções, imagens e resultado.','🎮','Entretenimento',[makeQuestion('image-options','Escolha seu estilo de jogo'),makeQuestion('radio','Qual plataforma você usa?')])
 ];
+
