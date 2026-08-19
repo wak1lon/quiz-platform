@@ -4,6 +4,7 @@ import { deepClone } from './utils.js';
 
 const FIREBASE_TIMEOUT_MS=12000;
 const FIRESTORE_SAFE_QUIZ_BYTES=850000;
+const SUBMISSION_TIMEOUT_MS=8000;
 
 function quizPayloadBytes(payload){
   const json=JSON.stringify(payload);
@@ -88,6 +89,7 @@ export async function listQuizzes({admin=false,includeSubmissions=false}={}){
           quiz.statistics.averageScore=completed.length?Math.round(completed.reduce((sum,item)=>sum+(Number(item.score)||0),0)/completed.length):0;
         }catch(error){
           quiz.submissions=Array.isArray(quiz.submissions)?quiz.submissions:[];
+          quiz.submissionLoadError=firebaseMessage(error);
           console.warn(`Não foi possível carregar respostas do quiz ${quiz.id}.`,error);
         }
       }));
@@ -157,8 +159,24 @@ export async function deleteQuiz(id){
 export async function saveSubmission(quiz,submission){
   local.addSubmission(quiz.id,submission);
   if(firebaseEnabled()){
-    try{const f=await loadFirebase();await withTimeout(f.setDoc(f.doc(f.db,'quizzes',quiz.id,'submissions',submission.id),deepClone(submission)),'Envio da resposta');}
-    catch(error){console.warn('Resposta salva localmente, mas não sincronizada.',error);}
+    const f=await loadFirebase();
+    const attempts=submission?.attemptStatus==='completed'?2:1;
+    let lastError=null;
+    for(let index=0;index<attempts;index+=1){
+      const documentId=index===0?submission.id:`${submission.id}_retry_${index}`;
+      try{
+        await withTimeout(
+          f.setDoc(f.doc(f.db,'quizzes',quiz.id,'submissions',documentId),deepClone({...submission,id:documentId})),
+          index===0?'Envio da resposta':'Nova tentativa de envio da resposta',
+          SUBMISSION_TIMEOUT_MS
+        );
+        return submission;
+      }catch(error){
+        lastError=error;
+        console.warn(`Tentativa ${index+1} de sincronização da resposta falhou.`,error);
+      }
+    }
+    throw new Error(`A resposta não chegou ao painel. Verifique a internet e tente novamente. ${firebaseMessage(lastError)}`);
   }
   return submission;
 }
