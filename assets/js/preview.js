@@ -14,6 +14,56 @@ function visibleQuestions(){return (quiz.questions||[]).filter(q=>q.visible!==fa
 function condition(q){if(!q.condition?.fieldId)return true;const a=answers[q.condition.fieldId],b=q.condition.value;let m=false;switch(q.condition.operator){case '!=':m=String(a)!=String(b);break;case '>':m=Number(a)>Number(b);break;case '<':m=Number(a)<Number(b);break;case 'contains':m=Array.isArray(a)?a.includes(b):String(a??'').includes(String(b));break;default:m=String(a)==String(b);}return q.condition.effect==='hide'?!m:m;}
 function renderStep(){const qs=visibleQuestions();while(step<qs.length&&!isRenderable(qs[step]))step++;if(step>=qs.length){renderDone();return;}const q=qs[step],progress=Math.round(((step+1)/Math.max(1,qs.length))*100);root.innerHTML=wrap(`<div class="quiz-progress-wrap"><div class="quiz-progress-meta"><span>Etapa ${step+1} de ${qs.length}</span><span>${progress}%</span></div><div class="bar"><span style="width:${progress}%"></span></div></div><div class="quiz-question">${renderField(q)}</div><div class="quiz-actions-public">${step>0?'<button id="previewBack" class="btn btn-secondary">← Voltar</button>':'<span></span>'}<button id="previewNext" class="btn btn-primary">${step===qs.length-1?'Concluir preview':'Avançar'}</button></div>`);bind(q);document.getElementById('previewBack')?.addEventListener('click',()=>{step=Math.max(0,step-1);renderStep();});document.getElementById('previewNext').onclick=()=>{step++;renderStep();};}
 function isRenderable(q){return RESPONSE_TYPES.has(q.type)||['title','text','image','separator'].includes(q.type);}
-function renderField(q){const desc=q.description?`<p>${escapeHtml(q.description)}</p>`:'';if(q.type==='title'||q.type==='text')return `<h2>${escapeHtml(q.label)}</h2>${desc}`;if(q.type==='image')return `<h2>${escapeHtml(q.label)}</h2>${q.imageUrl?`<img src="${escapeHtml(q.imageUrl)}" alt="${escapeHtml(q.alt||'Imagem')}" style="width:100%;max-height:360px;object-fit:${q.objectFit||'cover'};border-radius:12px">`:desc}`;if(q.type==='separator')return '<hr style="border:0;border-top:1px solid var(--border);margin:22px 0">';const title=`<h2>${escapeHtml(q.label)}${q.required?' *':''}</h2>${desc}`;if(['radio','checkbox','image-options'].includes(q.type))return `${title}<div class="option-list">${(q.options||[]).map(o=>`<label class="option"><input type="${q.type==='checkbox'?'checkbox':'radio'}" name="${q.id}" value="${escapeHtml(o.value)}"><span>${o.icon?`${escapeHtml(o.icon)} `:''}${escapeHtml(o.label)}</span></label>`).join('')}</div>`;if(q.type==='select')return `${title}<div class="quiz-field"><select id="fieldInput"><option value="">Selecione</option>${(q.options||[]).map(o=>`<option value="${escapeHtml(o.value)}">${escapeHtml(o.label)}</option>`).join('')}</select></div>`;if(q.type==='textarea')return `${title}<div class="quiz-field"><textarea id="fieldInput" placeholder="${escapeHtml(q.placeholder||'')}"></textarea></div>`;if(q.type==='rating')return `${title}<div class="rating">${Array.from({length:q.max||5},(_,i)=>`<button type="button" data-rating="${i+1}">★</button>`).join('')}</div>`;if(q.type==='slider')return `${title}<input id="fieldInput" type="range" min="${q.min??0}" max="${q.max??100}" step="${q.step??1}" value="${q.defaultValue??q.min??0}" style="width:100%">`;if(['input','number','date','file'].includes(q.type))return `${title}<div class="quiz-field"><input id="fieldInput" type="${q.type==='input'?'text':q.type}" placeholder="${escapeHtml(q.placeholder||'')}"></div>`;return title;}
-function bind(q){if(['radio','checkbox','image-options'].includes(q.type)){root.querySelectorAll(`input[name="${CSS.escape(q.id)}"]`).forEach(i=>i.onchange=()=>{answers[q.id]=q.type==='checkbox'?[...root.querySelectorAll(`input[name="${CSS.escape(q.id)}"]:checked`)].map(x=>x.value):i.value;});return;}const input=document.getElementById('fieldInput');if(input)input.oninput=()=>answers[q.id]=input.value;root.querySelectorAll('[data-rating]').forEach(b=>b.onclick=()=>{answers[q.id]=Number(b.dataset.rating);});}
+function renderField(q){
+  const desc=q.description?`<p>${escapeHtml(q.description)}</p>`:'';
+  if(q.type==='title'||q.type==='text')return `<h2>${escapeHtml(q.label)}</h2>${desc}`;
+  if(q.type==='image')return `<h2>${escapeHtml(q.label)}</h2>${q.imageUrl?`<img src="${escapeHtml(q.imageUrl)}" alt="${escapeHtml(q.alt||'Imagem')}" style="width:100%;max-height:360px;object-fit:${q.objectFit||'cover'};border-radius:12px">`:desc}`;
+  if(q.type==='separator')return '<hr style="border:0;border-top:1px solid var(--border);margin:22px 0">';
+
+  const title=`<h2>${escapeHtml(q.label)}${q.required?' *':''}</h2>${desc}`;
+
+  if(q.type==='image-options'){
+    return `${title}<div class="option-list image-option-grid">${(q.options||[]).map(o=>`<label class="option image-option-card ${answers[q.id]===o.value?'selected':''}" data-image-choice="true"><input class="image-option-input" type="radio" name="${escapeHtml(q.id)}" value="${escapeHtml(o.value)}" aria-label="${escapeHtml(o.label||'Opção')}" ${answers[q.id]===o.value?'checked':''}><span class="image-option-media">${o.image?`<img class="image-option-image" src="${escapeHtml(o.image)}" alt="${escapeHtml(o.label||'Opção')}">`:(o.icon?`<span class="image-option-placeholder">${escapeHtml(o.icon)}</span>`:'<span class="image-option-placeholder">Sem imagem</span>')}</span><small class="image-option-title">${escapeHtml(o.label||'Opção')}</small></label>`).join('')}</div>`;
+  }
+
+  if(['radio','checkbox'].includes(q.type)){
+    return `${title}<div class="option-list">${(q.options||[]).map(o=>`<label class="option"><input type="${q.type==='checkbox'?'checkbox':'radio'}" name="${escapeHtml(q.id)}" value="${escapeHtml(o.value)}"><span>${o.icon?`${escapeHtml(o.icon)} `:''}${escapeHtml(o.label)}</span></label>`).join('')}</div>`;
+  }
+
+  if(q.type==='select')return `${title}<div class="quiz-field"><select id="fieldInput"><option value="">Selecione</option>${(q.options||[]).map(o=>`<option value="${escapeHtml(o.value)}">${escapeHtml(o.label)}</option>`).join('')}</select></div>`;
+  if(q.type==='textarea')return `${title}<div class="quiz-field"><textarea id="fieldInput" placeholder="${escapeHtml(q.placeholder||'')}"></textarea></div>`;
+  if(q.type==='rating')return `${title}<div class="rating">${Array.from({length:q.max||5},(_,i)=>`<button type="button" data-rating="${i+1}">★</button>`).join('')}</div>`;
+  if(q.type==='slider')return `${title}<input id="fieldInput" type="range" min="${q.min??0}" max="${q.max??100}" step="${q.step??1}" value="${q.defaultValue??q.min??0}" style="width:100%">`;
+  if(['input','number','date','file'].includes(q.type))return `${title}<div class="quiz-field"><input id="fieldInput" type="${q.type==='input'?'text':q.type}" placeholder="${escapeHtml(q.placeholder||'')}"></div>`;
+  return title;
+}
+
+function bind(q){
+  if(q.type==='image-options'){
+    const cards=[...root.querySelectorAll('[data-image-choice]')];
+    cards.forEach(card=>{
+      const input=card.querySelector('input');
+      if(!input)return;
+      input.onchange=()=>{
+        answers[q.id]=input.value;
+        cards.forEach(item=>item.classList.toggle('selected',item.querySelector('input')?.checked===true));
+      };
+    });
+    return;
+  }
+
+  if(['radio','checkbox'].includes(q.type)){
+    root.querySelectorAll(`input[name="${CSS.escape(q.id)}"]`).forEach(i=>i.onchange=()=>{
+      answers[q.id]=q.type==='checkbox'
+        ?[...root.querySelectorAll(`input[name="${CSS.escape(q.id)}"]:checked`)].map(x=>x.value)
+        :i.value;
+    });
+    return;
+  }
+
+  const input=document.getElementById('fieldInput');
+  if(input)input.oninput=()=>answers[q.id]=input.value;
+  root.querySelectorAll('[data-rating]').forEach(b=>b.onclick=()=>{answers[q.id]=Number(b.dataset.rating);});
+}
+
 function renderDone(){root.innerHTML=wrap(`<div class="result-hero"><span class="eyebrow">PRÉ-VISUALIZAÇÃO</span><h1>Fluxo concluído</h1><p>Nenhuma resposta foi salva e nenhuma integração foi disparada.</p><div class="result-actions"><button class="btn btn-secondary" id="previewAgain">Refazer preview</button></div></div>`);document.getElementById('previewAgain').onclick=()=>{answers={};step=0;renderWelcome();};}
