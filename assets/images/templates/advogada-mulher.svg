@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800" role="img" aria-labelledby="title desc">
+  <title id="title">Advogada</title>
+  <desc id="desc">Retrato profissional ilustrado de uma advogada em fundo claro.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#eaf4f5"/>
+    </linearGradient>
+    <linearGradient id="jacket" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0b4254"/>
+      <stop offset="1" stop-color="#001f2d"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="40%" r="50%">
+      <stop offset="0" stop-color="#4ae1bb" stop-opacity=".22"/>
+      <stop offset="1" stop-color="#4ae1bb" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="170%">
+      <feDropShadow dx="0" dy="24" stdDeviation="24" flood-color="#003347" flood-opacity=".18"/>
+    </filter>
+  </defs>
+  <rect width="800" height="800" fill="url(#bg)"/>
+  <circle cx="400" cy="340" r="320" fill="url(#glow)"/>
+  <circle cx="108" cy="168" r="6" fill="#0b6e79" opacity=".35"/>
+  <circle cx="688" cy="112" r="7" fill="#4ae1bb" opacity=".55"/>
+  <path d="M92 684c92-149 198-222 308-222s216 73 308 222v116H92z" fill="url(#jacket)" filter="url(#shadow)"/>
+  <path d="M283 510l117 127 117-127-48-36H331z" fill="#fff"/>
+  <path d="M327 467l73 84 73-84-10-77H337z" fill="#b9704f"/>
+  <path d="M260 290c-5-119 60-195 147-195 100 0 159 76 153 198l-21 185-81-35H342l-81 35z" fill="#3b2525"/>
+  <ellipse cx="400" cy="318" rx="132" ry="164" fill="#c9825d"/>
+  <path d="M269 287c-4-108 53-182 141-182 86 0 145 60 150 160-55-22-94-59-119-104-37 64-95 107-172 126z" fill="#432928"/>
+  <path d="M276 282c-32 13-24 87 15 94l14-9-7-78zM524 282c32 13 24 87-15 94l-14-9 7-78z" fill="#c9825d"/>
+  <ellipse cx="350" cy="320" rx="12" ry="9" fill="#2c2222"/>
+  <ellipse cx="450" cy="320" rx="12" ry="9" fill="#2c2222"/>
+  <path d="M337 286c17-11 37-11 54-1M409 285c17-10 37-9 54 2" fill="none" stroke="#3b2525" stroke-width="10" stroke-linecap="round"/>
+  <path d="M380 365c13 7 27 7 40 0" fill="none" stroke="#a96149" stroke-width="7" stroke-linecap="round"/>
+  <path d="M347 405c32 25 74 25 106 0" fill="#a4494d" stroke="#823a3f" stroke-width="6" stroke-linejoin="round"/>
+  <path d="M266 800l72-238 62 75-44 163zM534 800l-72-238-62 75 44 163z" fill="#062f40" opacity=".72"/>
+  <rect x="92" y="86" width="616" height="628" rx="38" fill="none" stroke="#003347" stroke-opacity=".08" stroke-width="3"/>
+</svg>
