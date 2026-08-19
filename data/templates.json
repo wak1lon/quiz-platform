@@ -1,6 +1,7 @@
 {
   "version": "1.0.0",
   "templates": [
+    {"id":"advogado-previdenciario","name":"Mapa de Crescimento para Advogados Previdenciários","category":"Marketing Jurídico"},
     {"id":"previdenciario","name":"Quiz Previdenciário","category":"Jurídico"},
     {"id":"satisfacao","name":"Pesquisa de Satisfação","category":"Pesquisa"},
     {"id":"vocacional","name":"Teste Vocacional","category":"Educação"},

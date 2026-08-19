@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800" role="img" aria-labelledby="title desc">
+  <title id="title">Advogado</title>
+  <desc id="desc">Retrato profissional ilustrado de um advogado em fundo claro.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#eaf4f5"/>
+    </linearGradient>
+    <linearGradient id="suit" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0b4254"/>
+      <stop offset="1" stop-color="#001f2d"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="40%" r="50%">
+      <stop offset="0" stop-color="#4ae1bb" stop-opacity=".22"/>
+      <stop offset="1" stop-color="#4ae1bb" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="170%">
+      <feDropShadow dx="0" dy="24" stdDeviation="24" flood-color="#003347" flood-opacity=".18"/>
+    </filter>
+  </defs>
+  <rect width="800" height="800" fill="url(#bg)"/>
+  <circle cx="400" cy="340" r="320" fill="url(#glow)"/>
+  <circle cx="105" cy="115" r="7" fill="#4ae1bb" opacity=".55"/>
+  <circle cx="690" cy="172" r="5" fill="#0b6e79" opacity=".35"/>
+  <path d="M95 675c93-143 199-213 305-213s212 70 305 213v125H95z" fill="url(#suit)" filter="url(#shadow)"/>
+  <path d="M282 500l118 134 118-134-46-31H328z" fill="#f8fafc"/>
+  <path d="M374 563h52l25 147-51 68-51-68z" fill="#0b6e79"/>
+  <path d="M327 469l73 82 73-82-8-70H335z" fill="#c9855a"/>
+  <ellipse cx="400" cy="318" rx="137" ry="163" fill="#d99667"/>
+  <path d="M266 298c-6-108 57-186 154-186 76 0 137 44 151 118 7 39-2 75-22 107-5-71-35-118-77-146-46 57-117 78-204 70z" fill="#172d36"/>
+  <path d="M274 281c-34 9-28 86 13 96l15-7-5-82zM526 281c34 9 28 86-13 96l-15-7 5-82z" fill="#d99667"/>
+  <ellipse cx="350" cy="319" rx="12" ry="9" fill="#172d36"/>
+  <ellipse cx="450" cy="319" rx="12" ry="9" fill="#172d36"/>
+  <path d="M337 286c16-11 36-12 52-3M411 283c17-9 37-8 52 3" fill="none" stroke="#172d36" stroke-width="10" stroke-linecap="round"/>
+  <path d="M379 366c13 8 29 8 42 0" fill="none" stroke="#b56f4f" stroke-width="7" stroke-linecap="round"/>
+  <path d="M349 405c30 22 72 22 102 0" fill="none" stroke="#8c4438" stroke-width="8" stroke-linecap="round"/>
+  <path d="M266 800l71-240 63 74-46 166zM534 800l-71-240-63 74 46 166z" fill="#062f40" opacity=".72"/>
+  <rect x="92" y="86" width="616" height="628" rx="38" fill="none" stroke="#003347" stroke-opacity=".08" stroke-width="3"/>
+</svg>
