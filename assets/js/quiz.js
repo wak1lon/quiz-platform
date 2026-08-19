@@ -73,7 +73,7 @@ function wrap(inner){
 function renderWelcome(){
   finished=false;
   busy=false;
-  root.innerHTML=wrap(`<div class="quiz-question"><span class="eyebrow">${escapeHtml(quiz.category||'QUIZ')}</span><h1 style="font-size:${quiz.design?.titleSize||32}px;font-weight:${quiz.design?.titleWeight||700}">${escapeHtml(quiz.title)}</h1><p>${escapeHtml(quiz.messages?.welcome||quiz.description||'Clique para iniciar.')}</p><button type="button" id="startQuiz" class="btn btn-primary" style="background:${quiz.design?.buttonBackground||'var(--primary)'};color:${quiz.design?.buttonText||'#fff'};border-radius:${quiz.design?.buttonRadius||10}px">Iniciar Quiz</button></div>`);
+  root.innerHTML=wrap(`<div class="quiz-question quiz-welcome"><span class="eyebrow quiz-welcome-kicker">${escapeHtml(quiz.category||'QUIZ')}</span><div class="quiz-welcome-copy"><h1 style="font-size:${quiz.design?.titleSize||32}px;font-weight:${quiz.design?.titleWeight||700}">${escapeHtml(quiz.title)}</h1><p>${escapeHtml(quiz.messages?.welcome||quiz.description||'Clique para iniciar.')}</p></div><button type="button" id="startQuiz" class="btn btn-primary quiz-start-button" style="background:${quiz.design?.buttonBackground||'var(--primary)'};color:${quiz.design?.buttonText||'#fff'};border-radius:${quiz.design?.buttonRadius||10}px"><span>Iniciar Quiz</span><span aria-hidden="true">→</span></button></div>`);
   const start=document.getElementById('startQuiz');
   if(start)start.onclick=startQuiz;
 }
@@ -384,7 +384,7 @@ function renderField(q,progress){
   const desc=q.description?`<p>${escapeHtml(q.description)}</p>`:'';
   if(q.type==='title')return `<h2>${escapeHtml(q.label)}</h2>${desc}`;
   if(q.type==='text')return `<h2>${escapeHtml(q.label)}</h2>${desc}`;
-  if(q.type==='image')return `<h2>${escapeHtml(q.label)}</h2>${q.imageUrl?`<img src="${escapeHtml(q.imageUrl)}" alt="${escapeHtml(q.alt||'Imagem')}" style="width:100%;max-height:360px;object-fit:${q.objectFit||'cover'};border-radius:12px">`:desc}`;
+  if(q.type==='image')return `<h2>${escapeHtml(q.label)}</h2>${q.imageUrl?`<img class="quiz-content-image" src="${escapeHtml(q.imageUrl)}" alt="${escapeHtml(q.alt||'Imagem')}" loading="lazy" decoding="async">`:desc}`;
   if(q.type==='separator')return '<hr style="border:0;border-top:1px solid var(--border);margin:22px 0">';
   if(q.type==='progress')return `<div class="quiz-progress-wrap"><div class="bar"><span style="width:${progress}%"></span></div></div>`;
   if(q.type==='percentage')return `<div class="result-score">${progress}%</div>`;
@@ -398,11 +398,11 @@ function renderField(q,progress){
   const title=`<h2>${escapeHtml(q.label)}${q.required?' *':''}</h2>${desc}`;
 
   if(q.type==='image-options'){
-    return `${title}<div class="option-list image-option-grid">${(q.options||[]).map(o=>`<label class="option image-option-card ${selectedOption(q,o.value)?'selected':''}" data-image-choice="true"><input class="image-option-input" data-field-id="${escapeHtml(q.id)}" type="radio" name="${escapeHtml(q.id)}" value="${escapeHtml(o.value)}" aria-label="${escapeHtml(o.label||'Opção')}" ${selectedOption(q,o.value)?'checked':''}><span class="image-option-media">${o.image?`<img class="image-option-image" src="${escapeHtml(o.image)}" alt="${escapeHtml(o.label||'Opção')}">`:(o.icon?`<span class="image-option-placeholder">${escapeHtml(o.icon)}</span>`:'<span class="image-option-placeholder">Sem imagem</span>')}</span><small class="image-option-title">${escapeHtml(o.label||'Opção')}</small></label>`).join('')}</div>`;
+    return `${title}<div class="option-list image-option-grid">${(q.options||[]).map(o=>`<label class="option image-option-card ${selectedOption(q,o.value)?'selected':''}" data-image-choice="true"><input class="image-option-input" data-field-id="${escapeHtml(q.id)}" type="radio" name="${escapeHtml(q.id)}" value="${escapeHtml(o.value)}" aria-label="${escapeHtml(o.label||'Opção')}" ${selectedOption(q,o.value)?'checked':''}><span class="image-option-media">${o.image?`<img class="image-option-image" src="${escapeHtml(o.image)}" alt="${escapeHtml(o.label||'Opção')}" loading="lazy" decoding="async">`:(o.icon?`<span class="image-option-placeholder">${escapeHtml(o.icon)}</span>`:'<span class="image-option-placeholder">Sem imagem</span>')}</span><small class="image-option-title">${escapeHtml(o.label||'Opção')}</small></label>`).join('')}</div>`;
   }
 
   if(['radio','checkbox'].includes(q.type)){
-    return `${title}<div class="option-list">${(q.options||[]).map(o=>`<label class="option ${selectedOption(q,o.value)?'selected':''}">${o.image?`<img src="${escapeHtml(o.image)}" alt="" style="width:54px;height:54px;border-radius:9px;object-fit:cover">`:''}${o.icon?`<span class="option-icon">${escapeHtml(o.icon)}</span>`:''}<input data-field-id="${escapeHtml(q.id)}" type="${q.type==='checkbox'?'checkbox':'radio'}" name="${escapeHtml(q.id)}" value="${escapeHtml(o.value)}" ${selectedOption(q,o.value)?'checked':''}><span>${escapeHtml(o.label)}</span></label>`).join('')}</div>`;
+    return `${title}<div class="option-list">${(q.options||[]).map(o=>`<label class="option ${selectedOption(q,o.value)?'selected':''}">${o.image?`<img class="option-inline-image" src="${escapeHtml(o.image)}" alt="" loading="lazy" decoding="async">`:''}${o.icon?`<span class="option-icon">${escapeHtml(o.icon)}</span>`:''}<input data-field-id="${escapeHtml(q.id)}" type="${q.type==='checkbox'?'checkbox':'radio'}" name="${escapeHtml(q.id)}" value="${escapeHtml(o.value)}" ${selectedOption(q,o.value)?'checked':''}><span>${escapeHtml(o.label)}</span></label>`).join('')}</div>`;
   }
 
   if(q.type==='select')return `${title}<div class="quiz-field"><select id="fieldInput"><option value="">Selecione</option>${(q.options||[]).map(o=>`<option value="${escapeHtml(o.value)}" ${answers[q.id]===o.value?'selected':''}>${escapeHtml(o.label)}</option>`).join('')}</select></div>`;
@@ -705,4 +705,3 @@ function renderAttemptLimit(){
   finished=true;
   root.innerHTML=wrap(`<div class="quiz-question"><h1>Limite atingido</h1><p>${escapeHtml(quiz.messages?.attemptLimit||'Você atingiu o limite de tentativas.')}</p></div>`);
 }
-

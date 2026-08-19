@@ -12,7 +12,7 @@ else renderWelcome();
 
 function applyDesign(){applyQuizPageDesign(quiz,{preview:true});}
 function wrap(inner){const d=quiz.design||{};return `<section class="quiz-card-public" style="border-radius:${d.cardRadius||18}px;background:${d.cardBackground||'#fff'}"><div class="quiz-inner" style="padding:${d.cardPadding||32}px">${quizTopMediaHtml(d,escapeHtml)}${inner}</div></section>`;}
-function renderWelcome(){root.innerHTML=wrap(`<div class="quiz-question"><span class="eyebrow">${escapeHtml(quiz.category||'QUIZ')}</span><h1>${escapeHtml(quiz.title||'Quiz')}</h1><p>${escapeHtml(quiz.messages?.welcome||quiz.description||'Pré-visualização do quiz.')}</p><button id="startPreview" class="btn btn-primary">Iniciar</button></div>`);document.getElementById('startPreview').onclick=()=>{step=0;renderStep();};}
+function renderWelcome(){root.innerHTML=wrap(`<div class="quiz-question quiz-welcome"><span class="eyebrow quiz-welcome-kicker">${escapeHtml(quiz.category||'QUIZ')}</span><div class="quiz-welcome-copy"><h1>${escapeHtml(quiz.title||'Quiz')}</h1><p>${escapeHtml(quiz.messages?.welcome||quiz.description||'Pré-visualização do quiz.')}</p></div><button id="startPreview" class="btn btn-primary quiz-start-button"><span>Iniciar</span><span aria-hidden="true">→</span></button></div>`);document.getElementById('startPreview').onclick=()=>{step=0;renderStep();};}
 function visibleQuestions(){return (quiz.questions||[]).filter(q=>q.visible!==false&&condition(q));}
 function condition(q){if(!q.condition?.fieldId)return true;const a=answers[q.condition.fieldId],b=q.condition.value;let m=false;switch(q.condition.operator){case '!=':m=String(a)!=String(b);break;case '>':m=Number(a)>Number(b);break;case '<':m=Number(a)<Number(b);break;case 'contains':m=Array.isArray(a)?a.includes(b):String(a??'').includes(String(b));break;default:m=String(a)==String(b);}return q.condition.effect==='hide'?!m:m;}
 function renderStep(){const qs=visibleQuestions();while(step<qs.length&&!isRenderable(qs[step]))step++;if(step>=qs.length){renderDone();return;}const q=qs[step],progress=Math.round(((step+1)/Math.max(1,qs.length))*100);root.innerHTML=wrap(`<div class="quiz-progress-wrap"><div class="quiz-progress-meta"><span>Etapa ${step+1} de ${qs.length}</span><span>${progress}%</span></div><div class="bar"><span style="width:${progress}%"></span></div></div><div class="quiz-question">${renderField(q)}</div><div class="quiz-actions-public">${step>0?'<button id="previewBack" class="btn btn-secondary">← Voltar</button>':'<span></span>'}<button id="previewNext" class="btn btn-primary">${step===qs.length-1?'Concluir preview':'Avançar'}</button></div>`);bind(q);document.getElementById('previewBack')?.addEventListener('click',()=>{step=Math.max(0,step-1);renderStep();});document.getElementById('previewNext').onclick=()=>{step++;renderStep();};}
@@ -20,13 +20,13 @@ function isRenderable(q){return RESPONSE_TYPES.has(q.type)||['title','text','ima
 function renderField(q){
   const desc=q.description?`<p>${escapeHtml(q.description)}</p>`:'';
   if(q.type==='title'||q.type==='text')return `<h2>${escapeHtml(q.label)}</h2>${desc}`;
-  if(q.type==='image')return `<h2>${escapeHtml(q.label)}</h2>${q.imageUrl?`<img src="${escapeHtml(q.imageUrl)}" alt="${escapeHtml(q.alt||'Imagem')}" style="width:100%;max-height:360px;object-fit:${q.objectFit||'cover'};border-radius:12px">`:desc}`;
+  if(q.type==='image')return `<h2>${escapeHtml(q.label)}</h2>${q.imageUrl?`<img class="quiz-content-image" src="${escapeHtml(q.imageUrl)}" alt="${escapeHtml(q.alt||'Imagem')}" loading="lazy" decoding="async">`:desc}`;
   if(q.type==='separator')return '<hr style="border:0;border-top:1px solid var(--border);margin:22px 0">';
 
   const title=`<h2>${escapeHtml(q.label)}${q.required?' *':''}</h2>${desc}`;
 
   if(q.type==='image-options'){
-    return `${title}<div class="option-list image-option-grid">${(q.options||[]).map(o=>`<label class="option image-option-card ${answers[q.id]===o.value?'selected':''}" data-image-choice="true"><input class="image-option-input" type="radio" name="${escapeHtml(q.id)}" value="${escapeHtml(o.value)}" aria-label="${escapeHtml(o.label||'Opção')}" ${answers[q.id]===o.value?'checked':''}><span class="image-option-media">${o.image?`<img class="image-option-image" src="${escapeHtml(o.image)}" alt="${escapeHtml(o.label||'Opção')}">`:(o.icon?`<span class="image-option-placeholder">${escapeHtml(o.icon)}</span>`:'<span class="image-option-placeholder">Sem imagem</span>')}</span><small class="image-option-title">${escapeHtml(o.label||'Opção')}</small></label>`).join('')}</div>`;
+    return `${title}<div class="option-list image-option-grid">${(q.options||[]).map(o=>`<label class="option image-option-card ${answers[q.id]===o.value?'selected':''}" data-image-choice="true"><input class="image-option-input" type="radio" name="${escapeHtml(q.id)}" value="${escapeHtml(o.value)}" aria-label="${escapeHtml(o.label||'Opção')}" ${answers[q.id]===o.value?'checked':''}><span class="image-option-media">${o.image?`<img class="image-option-image" src="${escapeHtml(o.image)}" alt="${escapeHtml(o.label||'Opção')}" loading="lazy" decoding="async">`:(o.icon?`<span class="image-option-placeholder">${escapeHtml(o.icon)}</span>`:'<span class="image-option-placeholder">Sem imagem</span>')}</span><small class="image-option-title">${escapeHtml(o.label||'Opção')}</small></label>`).join('')}</div>`;
   }
 
   if(['radio','checkbox'].includes(q.type)){
@@ -70,4 +70,3 @@ function bind(q){
 }
 
 function renderDone(){root.innerHTML=wrap(`<div class="result-hero"><span class="eyebrow">PRÉ-VISUALIZAÇÃO</span><h1>Fluxo concluído</h1><p>Nenhuma resposta foi salva e nenhuma integração foi disparada.</p><div class="result-actions"><button class="btn btn-secondary" id="previewAgain">Refazer preview</button></div></div>`);document.getElementById('previewAgain').onclick=()=>{answers={};step=0;if(quiz.settings?.showWelcome===false)renderStep();else renderWelcome();};}
-

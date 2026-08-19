@@ -18,9 +18,10 @@ export function applyQuizPageDesign(quiz,{platformName='QUIZ ADV',preview=false}
   document.body.style.fontFamily=`${d.fontFamily||'Poppins'},sans-serif`;
   document.body.style.backgroundColor=background;
   document.body.style.backgroundImage=d.backgroundImage?cssUrl(d.backgroundImage):'none';
-  document.body.style.backgroundSize='cover';
+  document.body.style.backgroundSize='contain';
   document.body.style.backgroundPosition='center center';
   document.body.style.backgroundRepeat='no-repeat';
+  document.body.style.backgroundAttachment='scroll';
 
   const theme=document.querySelector('meta[name="theme-color"]');
   if(theme)theme.setAttribute('content',d.primaryColor||'#1E3A8A');
@@ -45,10 +46,10 @@ export function applyQuizPageDesign(quiz,{platformName='QUIZ ADV',preview=false}
 
 export function quizTopMediaHtml(design={},escapeHtml=value=>String(value||'')){
   const profile=design.profileImage
-    ?`<img class="quiz-profile-image" src="${escapeHtml(design.profileImage)}" alt="Foto de perfil">`
+    ?`<img class="quiz-profile-image" src="${escapeHtml(design.profileImage)}" alt="Foto de perfil" decoding="async">`
     :'';
   const logo=design.logo
-    ?`<img class="quiz-logo" src="${escapeHtml(design.logo)}" alt="Logo">`
+    ?`<img class="quiz-logo" src="${escapeHtml(design.logo)}" alt="Logo" decoding="async">`
     :'';
   if(!profile&&!logo)return '';
   return `<div class="quiz-top-media">${profile}${logo}</div>`;
