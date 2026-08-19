@@ -182,7 +182,9 @@ function ensurePreview(field, src, name) {
     preview.style.borderRadius = '12px';
     preview.style.marginTop = '8px';
     preview.style.display = 'block';
-    field.appendChild(preview);
+    const nameWrap = field.querySelector('[data-qp-image-option-name-wrap]');
+    if (nameWrap) field.insertBefore(preview, nameWrap);
+    else field.appendChild(preview);
   }
   preview.src = src;
   preview.alt = name || 'Imagem da opção';
@@ -250,10 +252,11 @@ function patchOptionField(field, index, textarea) {
   const oldLabel = field.querySelector('label');
 
   const nameWrap = document.createElement('div');
-  nameWrap.style.marginBottom = '8px';
+  nameWrap.dataset.qpImageOptionNameWrap = '1';
+  nameWrap.style.marginTop = '8px';
 
   const nameLabel = document.createElement('label');
-  nameLabel.textContent = 'Nome da opção / imagem';
+  nameLabel.textContent = 'Título abaixo da imagem';
 
   const nameInput = document.createElement('input');
   nameInput.type = 'text';
@@ -264,12 +267,8 @@ function patchOptionField(field, index, textarea) {
   nameWrap.appendChild(nameLabel);
   nameWrap.appendChild(nameInput);
 
-  if (oldLabel) {
-    oldLabel.textContent = 'Imagem da opção';
-    field.insertBefore(nameWrap, oldLabel);
-  } else {
-    field.insertBefore(nameWrap, upload);
-  }
+  if (oldLabel) oldLabel.textContent = 'Imagem da opção';
+  field.appendChild(nameWrap);
 
   if (row.image) {
     ensurePreview(field, row.image, row.label);
@@ -277,7 +276,6 @@ function patchOptionField(field, index, textarea) {
 
   nameInput.addEventListener('input', () => {
     syncNameIntoRow(textarea, index, nameInput.value);
-    if (oldLabel) oldLabel.textContent = `Imagem — ${nameInput.value || `Opção ${index + 1}`}`;
   });
 
   // O código antigo usa .onchange. Substituímos deliberadamente para que
