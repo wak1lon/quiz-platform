@@ -3,6 +3,7 @@ import { RESPONSE_TYPES, OPTION_TYPES, uid } from './defaults.js';
 import { escapeHtml, safeJson, toast } from './utils.js';
 import { getLegal } from './platform-safe-settings.js';
 import { getPlatformMemory } from './platform-memory.js';
+import { applyQuizPageDesign, quizTopMediaHtml } from './quiz-published-design.js';
 
 const root=document.getElementById('quizRoot');
 const slug=new URLSearchParams(location.search).get('slug')||'previdenciario';
@@ -54,23 +55,7 @@ function trackSafe(event,params={}){
 }
 
 function applyDesign(){
-  const d=quiz.design||{};
-  const style=document.documentElement.style;
-  style.setProperty('--primary',d.primaryColor||'#1E3A8A');
-  style.setProperty('--secondary',d.secondaryColor||'#3B82F6');
-  style.setProperty('--background',d.backgroundColor||'#F3F4F6');
-  style.setProperty('--text',d.textColor||'#1F2937');
-  style.setProperty('--accent',d.accentColor||'#F59E0B');
-  style.setProperty('--success',d.successColor||'#10B981');
-  style.setProperty('--danger',d.errorColor||'#EF4444');
-  document.body.style.fontFamily=`${d.fontFamily||'Poppins'},sans-serif`;
-  if(d.backgroundImage)document.body.style.backgroundImage=`linear-gradient(rgba(248,250,252,.82),rgba(248,250,252,.82)),url("${d.backgroundImage}")`;
-  if(d.favicon){
-    let link=document.querySelector('link[rel="icon"]');
-    if(!link){link=document.createElement('link');link.rel='icon';document.head.appendChild(link);}
-    link.href=d.favicon;
-  }
-  document.title=quiz.title||platformName;
+  applyQuizPageDesign(quiz,{platformName});
 }
 
 function legalFooter(){
@@ -82,7 +67,7 @@ function legalFooter(){
 
 function wrap(inner){
   const d=quiz.design||{};
-  return `<section class="quiz-card-public" style="border-radius:${d.cardRadius||18}px;background:${d.cardBackground||'#fff'};${d.cardShadow===false?'box-shadow:none;':''}"><div class="quiz-banner"></div><div class="quiz-inner" style="padding:${d.cardPadding||32}px">${d.logo?`<img class="quiz-logo" src="${escapeHtml(d.logo)}" alt="Logo">`:''}${inner}<div class="powered">${escapeHtml(platformName)}</div>${legalFooter()}</div></section>`;
+  return `<section class="quiz-card-public" style="border-radius:${d.cardRadius||18}px;background:${d.cardBackground||'#fff'};${d.cardShadow===false?'box-shadow:none;':''}"><div class="quiz-banner"></div><div class="quiz-inner" style="padding:${d.cardPadding||32}px">${quizTopMediaHtml(d,escapeHtml)}${inner}<div class="powered">${escapeHtml(platformName)}</div>${legalFooter()}</div></section>`;
 }
 
 function renderWelcome(){
@@ -720,3 +705,4 @@ function renderAttemptLimit(){
   finished=true;
   root.innerHTML=wrap(`<div class="quiz-question"><h1>Limite atingido</h1><p>${escapeHtml(quiz.messages?.attemptLimit||'Você atingiu o limite de tentativas.')}</p></div>`);
 }
+

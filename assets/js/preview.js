@@ -1,5 +1,6 @@
 import { RESPONSE_TYPES } from './defaults.js';
 import { escapeHtml } from './utils.js';
+import { applyQuizPageDesign, quizTopMediaHtml } from './quiz-published-design.js';
 
 const root=document.getElementById('previewRoot');
 let quiz=null,answers={},step=0;
@@ -9,8 +10,8 @@ applyDesign();
 if(quiz.settings?.showWelcome===false)renderStep();
 else renderWelcome();
 
-function applyDesign(){const d=quiz.design||{};const r=document.documentElement.style;r.setProperty('--primary',d.primaryColor||'#1E3A8A');r.setProperty('--secondary',d.secondaryColor||'#3B82F6');r.setProperty('--background',d.backgroundColor||'#F3F4F6');r.setProperty('--text',d.textColor||'#1F2937');r.setProperty('--accent',d.accentColor||'#F59E0B');document.body.style.fontFamily=`${d.fontFamily||'Poppins'},sans-serif`;if(d.backgroundImage)document.body.style.backgroundImage=`url("${d.backgroundImage}")`;document.title=`Pré-visualização · ${quiz.title||'Quiz'}`;}
-function wrap(inner){const d=quiz.design||{};return `<section class="quiz-card-public" style="border-radius:${d.cardRadius||18}px;background:${d.cardBackground||'#fff'}"><div class="quiz-inner" style="padding:${d.cardPadding||32}px">${d.logo?`<img class="quiz-logo" src="${escapeHtml(d.logo)}" alt="Logo">`:''}${inner}</div></section>`;}
+function applyDesign(){applyQuizPageDesign(quiz,{preview:true});}
+function wrap(inner){const d=quiz.design||{};return `<section class="quiz-card-public" style="border-radius:${d.cardRadius||18}px;background:${d.cardBackground||'#fff'}"><div class="quiz-inner" style="padding:${d.cardPadding||32}px">${quizTopMediaHtml(d,escapeHtml)}${inner}</div></section>`;}
 function renderWelcome(){root.innerHTML=wrap(`<div class="quiz-question"><span class="eyebrow">${escapeHtml(quiz.category||'QUIZ')}</span><h1>${escapeHtml(quiz.title||'Quiz')}</h1><p>${escapeHtml(quiz.messages?.welcome||quiz.description||'Pré-visualização do quiz.')}</p><button id="startPreview" class="btn btn-primary">Iniciar</button></div>`);document.getElementById('startPreview').onclick=()=>{step=0;renderStep();};}
 function visibleQuestions(){return (quiz.questions||[]).filter(q=>q.visible!==false&&condition(q));}
 function condition(q){if(!q.condition?.fieldId)return true;const a=answers[q.condition.fieldId],b=q.condition.value;let m=false;switch(q.condition.operator){case '!=':m=String(a)!=String(b);break;case '>':m=Number(a)>Number(b);break;case '<':m=Number(a)<Number(b);break;case 'contains':m=Array.isArray(a)?a.includes(b):String(a??'').includes(String(b));break;default:m=String(a)==String(b);}return q.condition.effect==='hide'?!m:m;}
@@ -69,3 +70,4 @@ function bind(q){
 }
 
 function renderDone(){root.innerHTML=wrap(`<div class="result-hero"><span class="eyebrow">PRÉ-VISUALIZAÇÃO</span><h1>Fluxo concluído</h1><p>Nenhuma resposta foi salva e nenhuma integração foi disparada.</p><div class="result-actions"><button class="btn btn-secondary" id="previewAgain">Refazer preview</button></div></div>`);document.getElementById('previewAgain').onclick=()=>{answers={};step=0;if(quiz.settings?.showWelcome===false)renderStep();else renderWelcome();};}
+
