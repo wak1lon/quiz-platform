@@ -156,6 +156,90 @@ function __periodAnswerValue(field,value){
   return labelFor(value);
 }
 
+function __contactFieldKind(field){
+  const text=`${field?.id||''} ${field?.label||''} ${field?.placeholder||''}`.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+  if(/whatsapp|telefone|celular|phone|\btel\b/.test(text))return 'phone';
+  if(/e[- ]?mail|email/.test(text))return 'email';
+  if(/(^|\s)(nome|name|responsavel)(\s|$)/.test(text))return 'name';
+  return '';
+}
+
+function __contactAnswer(quiz,attempt,kind){
+  const fields=(quiz.questions||[]).filter(field=>__contactFieldKind(field)===kind);
+  for(const field of fields){
+    const value=attempt.answers?.[field.id];
+    if(value!==undefined&&value!==null&&String(value).trim())return __periodAnswerValue(field,value);
+  }
+  const fallback={
+    name:['lead_name','name','nome','full_name','contact_name'],
+    email:['lead_email','email','e-mail','contact_email'],
+    phone:['lead_whatsapp','whatsapp','phone','telefone','celular','contact_phone']
+  }[kind]||[];
+  for(const key of fallback){
+    const value=attempt.answers?.[key];
+    if(value!==undefined&&value!==null&&String(value).trim())return String(value).trim();
+  }
+  return '';
+}
+
+function __attemptContact(quiz,attempt){
+  return {
+    name:__contactAnswer(quiz,attempt,'name'),
+    email:__contactAnswer(quiz,attempt,'email'),
+    phone:__contactAnswer(quiz,attempt,'phone')
+  };
+}
+
+function __exportContacts(quiz,attempts,period,specificDate){
+  const contacts=attempts.map(attempt=>({attempt,contact:__attemptContact(quiz,attempt)})).filter(item=>item.contact.name||item.contact.email||item.contact.phone);
+  if(!contacts.length){toast('Nenhum contato foi encontrado neste período.','error');return;}
+  const headers=['Nome','WhatsApp / Telefone','E-mail','Quiz / Formulário','Data','Status','Score'];
+  const rows=[headers,...contacts.map(({attempt,contact})=>[
+    contact.name,
+    contact.phone,
+    contact.email,
+    quiz.title||'',
+    attempt.completedAt||attempt.createdAt||attempt.startedAt||'',
+    __submissionCompleted(attempt)?'Concluído':'Abandono',
+    __submissionCompleted(attempt)?attempt.score??0:''
+  ])];
+  const suffix=period==='specific'?(specificDate||'data'):period;
+  const csv='\uFEFF'+rows.map(row=>row.map(csvEscape).join(';')).join('\r\n');
+  download(`${slugify(quiz.title||'quiz')}-${suffix}-contatos.csv`,csv,'text/csv;charset=utf-8');
+}
+
+function __vcardEscape(value){
+  return String(value||'').replace(/\\/g,'\\\\').replace(/\r?\n/g,'\\n').replace(/([,;])/g,'\\$1');
+}
+
+function __exportContactVcard(quiz,attempt){
+  const contact=__attemptContact(quiz,attempt);
+  if(!contact.name&&!contact.email&&!contact.phone){toast('Esta resposta não possui dados de contato.','error');return;}
+  const fallback=`Contato ${String(attempt.attemptId||attempt.id||'').slice(-8)}`;
+  const name=contact.name||fallback;
+  const phone=String(contact.phone||'').replace(/[^\d+]/g,'');
+  const lines=['BEGIN:VCARD','VERSION:3.0',`FN:${__vcardEscape(name)}`];
+  if(phone)lines.push(`TEL;TYPE=CELL:${__vcardEscape(phone)}`);
+  if(contact.email)lines.push(`EMAIL:${__vcardEscape(contact.email)}`);
+  lines.push(`NOTE:${__vcardEscape(`Origem: ${quiz.title||'Quiz'} · ${formatDate(attempt.completedAt||attempt.createdAt||attempt.startedAt)}`)}`,'END:VCARD');
+  download(`${slugify(name)||'contato'}.vcf`,lines.join('\r\n'),'text/vcard;charset=utf-8');
+}
+
+function __openAttemptDetails(quiz,attempt){
+  const contact=__attemptContact(quiz,attempt);
+  const completed=__submissionCompleted(attempt);
+  const responseFields=(quiz.questions||[]).filter(field=>RESPONSE_TYPES.has(field.type));
+  const rows=responseFields.map(field=>{
+    const value=__periodAnswerValue(field,attempt.answers?.[field.id]);
+    return `<div class="list-row"><div><strong>${escapeHtml(field.label||field.id)}</strong><small>${escapeHtml(value||'Não informado')}</small></div></div>`;
+  }).join('');
+  modalRoot.innerHTML=`<div class="modal-backdrop"><section class="modal" style="width:min(720px,94vw);max-height:92vh"><div class="modal-head"><div><strong>Dados do contato</strong><div class="muted" style="font-size:12px">${escapeHtml(quiz.title||'Quiz')} · ${formatDate(attempt.completedAt||attempt.createdAt||attempt.startedAt)}</div></div><button class="icon-button" data-close-contact aria-label="Fechar">×</button></div><div class="modal-body" style="overflow:auto"><div class="stats-grid" style="margin-bottom:16px"><article class="card stat-card"><div class="stat-value" style="font-size:18px">${escapeHtml(contact.name||'Não informado')}</div><div class="stat-label">Nome</div></article><article class="card stat-card"><div class="stat-value" style="font-size:16px">${escapeHtml(contact.phone||'Não informado')}</div><div class="stat-label">WhatsApp / Telefone</div></article><article class="card stat-card"><div class="stat-value" style="font-size:14px">${escapeHtml(contact.email||'Não informado')}</div><div class="stat-label">E-mail</div></article></div><div class="actions" style="margin-bottom:18px"><button class="btn btn-primary" id="downloadContactVcard" ${contact.name||contact.email||contact.phone?'':'disabled'}>Baixar contato (.VCF)</button>${contact.phone?'<button class="btn btn-secondary" id="openContactWhatsapp">Abrir WhatsApp</button>':''}${contact.email?'<button class="btn btn-secondary" id="openContactEmail">Enviar e-mail</button>':''}</div><div class="code-box" style="margin-bottom:14px">Status: ${completed?'Concluído':'Abandono'} · Score: ${completed?`${attempt.score??0}%`:'—'} · ID: ${escapeHtml(attempt.attemptId||attempt.id||'')}</div><h3 style="margin:0 0 10px">Respostas enviadas</h3><div class="list">${rows||'<div class="empty">Nenhuma resposta informada.</div>'}</div></div></section></div>`;
+  modalRoot.querySelector('[data-close-contact]').onclick=()=>modalRoot.innerHTML='';
+  document.getElementById('downloadContactVcard')?.addEventListener('click',()=>__exportContactVcard(quiz,attempt));
+  document.getElementById('openContactWhatsapp')?.addEventListener('click',()=>{const phone=String(contact.phone||'').replace(/\D/g,'');if(phone)window.open(`https://wa.me/${phone}`,'_blank','noopener');});
+  document.getElementById('openContactEmail')?.addEventListener('click',()=>{if(contact.email)location.href=`mailto:${contact.email}`;});
+}
+
 function __exportPeriodResults(quiz,attempts,period,specificDate){
   const responseFields=(quiz.questions||[]).filter(field=>RESPONSE_TYPES.has(field.type));
   const headers=['ID da tentativa','Início','Conclusão','Score','Status','Duração (s)',...responseFields.map(field=>field.label||field.id)];
@@ -231,6 +315,7 @@ renderResults=function(){
 
     const data=__quizPeriodData(quiz,__resultsPeriod,__resultsSpecificDate);
     const rawSubmissions=Array.isArray(quiz.submissions)?quiz.submissions:[];
+    const contactCount=data.attempts.filter(attempt=>{const contact=__attemptContact(quiz,attempt);return contact.name||contact.email||contact.phone;}).length;
     const byQuestion=(quiz.questions||[]).filter(field=>OPTION_TYPES.has(field.type)).map(field=>{
       const counts={};
       data.completed.forEach(submission=>{
@@ -241,6 +326,7 @@ renderResults=function(){
     });
 
     body.innerHTML=`
+      ${quiz.submissionLoadError?`<div class="card" style="padding:14px;margin-bottom:14px;border-color:var(--danger);color:var(--danger)"><strong>As respostas não puderam ser carregadas do Firebase.</strong><div style="font-size:12px;margin-top:4px">Atualize a página. Se continuar, verifique a conexão e as permissões do Firebase.</div></div>`:''}
       ${__periodFilterMarkup(__resultsPeriod,__resultsSpecificDate)}
       <div class="stats-grid metric-stats">
         <article class="card stat-card"><div class="stat-value">${data.starts}</div><div class="stat-label">Inícios registrados</div></article>
@@ -259,17 +345,18 @@ renderResults=function(){
           <div class="section-head"><div><h2>Exportação</h2><p>${data.attempts.length} registro(s) no período</p></div></div>
           <div class="actions">
             <button class="btn btn-secondary" id="exportCsv">Exportar período para CSV / Excel</button>
+            <button class="btn btn-primary" id="exportContacts" ${contactCount?'':'disabled'}>Exportar contatos (${contactCount})</button>
             ${rawSubmissions.length?'<button class="btn btn-danger" id="clearResponses">Apagar todos os registros do quiz</button>':''}
           </div>
-          <div class="code-box" style="margin-top:12px">A exportação inclui o status de conclusão ou abandono e usa o nome de cada opção selecionada.</div>
+          <div class="code-box" style="margin-top:12px">O arquivo completo inclui todas as respostas. “Exportar contatos” gera Nome, WhatsApp, E-mail, data, status e score para abrir no Excel.</div>
         </section>
       </div>
       <section class="card card-pad" style="margin-top:18px">
         <div class="section-head"><div><h2>Tentativas no período</h2><p>${data.attempts.length} registro(s)</p></div></div>
         <div style="overflow:auto">
           <table class="result-table">
-            <thead><tr><th>Identificação</th><th>Score</th><th>Início</th><th>Status</th><th>Ações</th></tr></thead>
-            <tbody>${data.attempts.length?data.attempts.map(attempt=>{const completed=__submissionCompleted(attempt);const shortId=String(attempt.attemptId||attempt.id).slice(-8);const identity=attempt.answers?.lead_name||attempt.answers?.name||attempt.answers?.nome||(completed?`Tentativa ${shortId}`:`Abandono ${shortId}`);return `<tr><td>${escapeHtml(identity)}</td><td>${completed?`${attempt.score??0}%`:'—'}</td><td>${formatDate(attempt.createdAt||attempt.startedAt)}</td><td><span class="status-pill ${completed?'success':'incomplete'}">${completed?'Concluído':'Abandono'}</span></td><td><button class="btn btn-sm btn-danger" data-delete-attempt="${escapeHtml(attempt.attemptId||attempt.id)}">Apagar</button></td></tr>`;}).join(''):'<tr><td colspan="5">Nenhuma tentativa neste período.</td></tr>'}</tbody>
+            <thead><tr><th>Contato</th><th>WhatsApp</th><th>E-mail</th><th>Score</th><th>Início</th><th>Status</th><th>Ações</th></tr></thead>
+            <tbody>${data.attempts.length?data.attempts.map(attempt=>{const completed=__submissionCompleted(attempt);const shortId=String(attempt.attemptId||attempt.id).slice(-8);const contact=__attemptContact(quiz,attempt);const identity=contact.name||(completed?`Tentativa ${shortId}`:`Abandono ${shortId}`);return `<tr><td>${escapeHtml(identity)}</td><td>${escapeHtml(contact.phone||'—')}</td><td>${escapeHtml(contact.email||'—')}</td><td>${completed?`${attempt.score??0}%`:'—'}</td><td>${formatDate(attempt.createdAt||attempt.startedAt)}</td><td><span class="status-pill ${completed?'success':'incomplete'}">${completed?'Concluído':'Abandono'}</span></td><td><div class="actions"><button class="btn btn-sm btn-secondary" data-view-attempt="${escapeHtml(attempt.attemptId||attempt.id)}">Ver contato</button><button class="btn btn-sm btn-danger" data-delete-attempt="${escapeHtml(attempt.attemptId||attempt.id)}">Apagar</button></div></td></tr>`;}).join(''):'<tr><td colspan="7">Nenhuma tentativa neste período.</td></tr>'}</tbody>
           </table>
         </div>
       </section>`;
@@ -281,6 +368,12 @@ renderResults=function(){
     });
 
     document.getElementById('exportCsv')?.addEventListener('click',()=>__exportPeriodResults(quiz,data.attempts,__resultsPeriod,__resultsSpecificDate));
+    document.getElementById('exportContacts')?.addEventListener('click',()=>__exportContacts(quiz,data.attempts,__resultsPeriod,__resultsSpecificDate));
+
+    body.querySelectorAll('[data-view-attempt]').forEach(button=>button.onclick=()=>{
+      const attempt=data.attempts.find(item=>String(item.attemptId||item.id)===button.dataset.viewAttempt);
+      if(attempt)__openAttemptDetails(quiz,attempt);
+    });
 
     body.querySelectorAll('[data-delete-attempt]').forEach(button=>button.onclick=async()=>{
       const attempt=data.attempts.find(item=>String(item.attemptId||item.id)===button.dataset.deleteAttempt);
