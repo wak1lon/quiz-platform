@@ -84,6 +84,194 @@
   color: #c2410c;
 }
 
+.contact-results-list {
+  display: grid;
+  gap: 10px;
+}
+
+.contact-result-row {
+  display: grid;
+  grid-template-columns: minmax(220px, 2fr) minmax(115px, .75fr) minmax(150px, 1fr) auto;
+  align-items: center;
+  gap: 18px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  background: #fff;
+}
+
+.contact-result-person,
+.contact-result-data {
+  min-width: 0;
+}
+
+.contact-result-person > strong,
+.contact-result-data > strong {
+  display: block;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.contact-result-person > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-top: 5px;
+}
+
+.contact-result-person span,
+.contact-result-data > span {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.contact-result-data > span {
+  display: block;
+  margin-bottom: 4px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+.contact-result-data .status-pill {
+  display: inline-flex;
+  margin-top: 7px;
+}
+
+.contact-result-actions,
+.contact-detail-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.contact-detail-modal {
+  width: min(760px, 94vw);
+  max-height: 92vh;
+}
+
+.contact-detail-body {
+  overflow: auto;
+}
+
+.contact-identity {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: #f8fafc;
+}
+
+.contact-avatar {
+  width: 56px;
+  height: 56px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #fff;
+  font-weight: 700;
+}
+
+.contact-identity-copy {
+  min-width: 0;
+}
+
+.contact-identity-copy h2 {
+  margin: 0;
+  font-size: 18px;
+  overflow-wrap: anywhere;
+}
+
+.contact-lines {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.contact-detail-actions {
+  justify-content: flex-start;
+  margin: 14px 0;
+}
+
+.contact-attempt-meta {
+  display: grid;
+  grid-template-columns: .6fr 1fr 1.6fr;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.contact-attempt-meta > div {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+}
+
+.contact-attempt-meta span,
+.contact-answer-item span {
+  display: block;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+
+.contact-attempt-meta strong {
+  display: block;
+  margin-top: 5px;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.contact-answers-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.contact-answers-head h3 {
+  margin: 0;
+}
+
+.contact-answers-head span {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.contact-answer-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.contact-answer-item {
+  min-width: 0;
+  padding: 13px 14px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: #fff;
+}
+
+.contact-answer-item p {
+  margin: 6px 0 0;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
 @media (max-width: 1100px) {
   .stats-grid.metric-stats {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -110,6 +298,58 @@
   }
 
   .stats-grid.metric-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .contact-result-row {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .contact-result-data {
+    display: grid;
+    grid-template-columns: 90px minmax(0, 1fr);
+    align-items: center;
+    gap: 8px;
+  }
+
+  .contact-result-data > span,
+  .contact-result-data > strong {
+    margin: 0;
+  }
+
+  .contact-result-data .status-pill {
+    grid-column: 2;
+    justify-self: start;
+    margin-top: 0;
+  }
+
+  .contact-result-actions,
+  .contact-detail-actions {
+    justify-content: stretch;
+  }
+
+  .contact-result-actions .btn,
+  .contact-detail-actions .btn {
+    flex: 1 1 150px;
+  }
+
+  .contact-identity {
+    grid-template-columns: 48px minmax(0, 1fr);
+  }
+
+  .contact-avatar {
+    width: 48px;
+    height: 48px;
+  }
+
+  .contact-identity > .status-pill {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+
+  .contact-attempt-meta,
+  .contact-answer-list {
     grid-template-columns: 1fr;
   }
 }

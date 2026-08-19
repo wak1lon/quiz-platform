@@ -164,11 +164,20 @@ function __contactFieldKind(field){
   return '';
 }
 
+function __validContactValue(kind,value){
+  const text=String(value??'').trim();
+  if(!text)return false;
+  if(kind==='email')return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(text);
+  if(kind==='phone')return text.replace(/\D/g,'').length>=8;
+  return true;
+}
+
 function __contactAnswer(quiz,attempt,kind){
   const fields=(quiz.questions||[]).filter(field=>__contactFieldKind(field)===kind);
   for(const field of fields){
     const value=attempt.answers?.[field.id];
-    if(value!==undefined&&value!==null&&String(value).trim())return __periodAnswerValue(field,value);
+    const display=__periodAnswerValue(field,value);
+    if(__validContactValue(kind,display))return display;
   }
   const fallback={
     name:['lead_name','name','nome','full_name','contact_name'],
@@ -177,7 +186,7 @@ function __contactAnswer(quiz,attempt,kind){
   }[kind]||[];
   for(const key of fallback){
     const value=attempt.answers?.[key];
-    if(value!==undefined&&value!==null&&String(value).trim())return String(value).trim();
+    if(__validContactValue(kind,value))return String(value).trim();
   }
   return '';
 }
@@ -230,10 +239,13 @@ function __openAttemptDetails(quiz,attempt){
   const completed=__submissionCompleted(attempt);
   const responseFields=(quiz.questions||[]).filter(field=>RESPONSE_TYPES.has(field.type));
   const rows=responseFields.map(field=>{
-    const value=__periodAnswerValue(field,attempt.answers?.[field.id]);
-    return `<div class="list-row"><div><strong>${escapeHtml(field.label||field.id)}</strong><small>${escapeHtml(value||'Não informado')}</small></div></div>`;
+    let value=__periodAnswerValue(field,attempt.answers?.[field.id]);
+    const kind=__contactFieldKind(field);
+    if(kind&&value&&!__validContactValue(kind,value))value=`${kind==='email'?'E-mail':'Telefone'} inválido no preenchimento`;
+    return `<div class="contact-answer-item"><span>${escapeHtml(field.label||field.id)}</span><p>${escapeHtml(value||'Não informado')}</p></div>`;
   }).join('');
-  modalRoot.innerHTML=`<div class="modal-backdrop"><section class="modal" style="width:min(720px,94vw);max-height:92vh"><div class="modal-head"><div><strong>Dados do contato</strong><div class="muted" style="font-size:12px">${escapeHtml(quiz.title||'Quiz')} · ${formatDate(attempt.completedAt||attempt.createdAt||attempt.startedAt)}</div></div><button class="icon-button" data-close-contact aria-label="Fechar">×</button></div><div class="modal-body" style="overflow:auto"><div class="stats-grid" style="margin-bottom:16px"><article class="card stat-card"><div class="stat-value" style="font-size:18px">${escapeHtml(contact.name||'Não informado')}</div><div class="stat-label">Nome</div></article><article class="card stat-card"><div class="stat-value" style="font-size:16px">${escapeHtml(contact.phone||'Não informado')}</div><div class="stat-label">WhatsApp / Telefone</div></article><article class="card stat-card"><div class="stat-value" style="font-size:14px">${escapeHtml(contact.email||'Não informado')}</div><div class="stat-label">E-mail</div></article></div><div class="actions" style="margin-bottom:18px"><button class="btn btn-primary" id="downloadContactVcard" ${contact.name||contact.email||contact.phone?'':'disabled'}>Baixar contato (.VCF)</button>${contact.phone?'<button class="btn btn-secondary" id="openContactWhatsapp">Abrir WhatsApp</button>':''}${contact.email?'<button class="btn btn-secondary" id="openContactEmail">Enviar e-mail</button>':''}</div><div class="code-box" style="margin-bottom:14px">Status: ${completed?'Concluído':'Abandono'} · Score: ${completed?`${attempt.score??0}%`:'—'} · ID: ${escapeHtml(attempt.attemptId||attempt.id||'')}</div><h3 style="margin:0 0 10px">Respostas enviadas</h3><div class="list">${rows||'<div class="empty">Nenhuma resposta informada.</div>'}</div></div></section></div>`;
+  const initials=String(contact.name||'C').split(/\s+/).filter(Boolean).slice(0,2).map(part=>part[0]).join('').toUpperCase();
+  modalRoot.innerHTML=`<div class="modal-backdrop"><section class="modal contact-detail-modal"><div class="modal-head"><div><strong>Dados do contato</strong><div class="muted" style="font-size:12px">${escapeHtml(quiz.title||'Quiz')}</div></div><button class="icon-button" data-close-contact aria-label="Fechar">×</button></div><div class="modal-body contact-detail-body"><div class="contact-identity"><div class="contact-avatar">${escapeHtml(initials)}</div><div class="contact-identity-copy"><h2>${escapeHtml(contact.name||'Contato não identificado')}</h2><div class="contact-lines">${contact.phone?`<span>${escapeHtml(contact.phone)}</span>`:''}${contact.email?`<span>${escapeHtml(contact.email)}</span>`:''}${!contact.phone&&!contact.email?'<span>Nenhum telefone ou e-mail informado</span>':''}</div></div><span class="status-pill ${completed?'success':'incomplete'}">${completed?'Concluído':'Abandono'}</span></div><div class="contact-detail-actions"><button class="btn btn-primary" id="downloadContactVcard" ${contact.name||contact.email||contact.phone?'':'disabled'}>Baixar contato (.VCF)</button>${contact.phone?'<button class="btn btn-secondary" id="openContactWhatsapp">Abrir WhatsApp</button>':''}${contact.email?'<button class="btn btn-secondary" id="openContactEmail">Enviar e-mail</button>':''}</div><div class="contact-attempt-meta"><div><span>Score</span><strong>${completed?`${attempt.score??0}%`:'—'}</strong></div><div><span>Data</span><strong>${formatDate(attempt.completedAt||attempt.createdAt||attempt.startedAt)}</strong></div><div><span>ID da tentativa</span><strong>${escapeHtml(attempt.attemptId||attempt.id||'')}</strong></div></div><div class="contact-answers-head"><h3>Respostas enviadas</h3><span>${responseFields.length} campo(s)</span></div><div class="contact-answer-list">${rows||'<div class="empty">Nenhuma resposta informada.</div>'}</div></div></section></div>`;
   modalRoot.querySelector('[data-close-contact]').onclick=()=>modalRoot.innerHTML='';
   document.getElementById('downloadContactVcard')?.addEventListener('click',()=>__exportContactVcard(quiz,attempt));
   document.getElementById('openContactWhatsapp')?.addEventListener('click',()=>{const phone=String(contact.phone||'').replace(/\D/g,'');if(phone)window.open(`https://wa.me/${phone}`,'_blank','noopener');});
@@ -353,12 +365,7 @@ renderResults=function(){
       </div>
       <section class="card card-pad" style="margin-top:18px">
         <div class="section-head"><div><h2>Tentativas no período</h2><p>${data.attempts.length} registro(s)</p></div></div>
-        <div style="overflow:auto">
-          <table class="result-table">
-            <thead><tr><th>Contato</th><th>WhatsApp</th><th>E-mail</th><th>Score</th><th>Início</th><th>Status</th><th>Ações</th></tr></thead>
-            <tbody>${data.attempts.length?data.attempts.map(attempt=>{const completed=__submissionCompleted(attempt);const shortId=String(attempt.attemptId||attempt.id).slice(-8);const contact=__attemptContact(quiz,attempt);const identity=contact.name||(completed?`Tentativa ${shortId}`:`Abandono ${shortId}`);return `<tr><td>${escapeHtml(identity)}</td><td>${escapeHtml(contact.phone||'—')}</td><td>${escapeHtml(contact.email||'—')}</td><td>${completed?`${attempt.score??0}%`:'—'}</td><td>${formatDate(attempt.createdAt||attempt.startedAt)}</td><td><span class="status-pill ${completed?'success':'incomplete'}">${completed?'Concluído':'Abandono'}</span></td><td><div class="actions"><button class="btn btn-sm btn-secondary" data-view-attempt="${escapeHtml(attempt.attemptId||attempt.id)}">Ver contato</button><button class="btn btn-sm btn-danger" data-delete-attempt="${escapeHtml(attempt.attemptId||attempt.id)}">Apagar</button></div></td></tr>`;}).join(''):'<tr><td colspan="7">Nenhuma tentativa neste período.</td></tr>'}</tbody>
-          </table>
-        </div>
+        <div class="contact-results-list">${data.attempts.length?data.attempts.map(attempt=>{const completed=__submissionCompleted(attempt);const shortId=String(attempt.attemptId||attempt.id).slice(-8);const contact=__attemptContact(quiz,attempt);const identity=contact.name||(completed?`Tentativa ${shortId}`:`Abandono ${shortId}`);return `<article class="contact-result-row"><div class="contact-result-person"><strong>${escapeHtml(identity)}</strong><div>${contact.phone?`<span>${escapeHtml(contact.phone)}</span>`:''}${contact.email?`<span>${escapeHtml(contact.email)}</span>`:''}${!contact.phone&&!contact.email?'<span>Contato não informado</span>':''}</div></div><div class="contact-result-data"><span>Resultado</span><strong>${completed?`${attempt.score??0}%`:'—'}</strong><small class="status-pill ${completed?'success':'incomplete'}">${completed?'Concluído':'Abandono'}</small></div><div class="contact-result-data"><span>Data</span><strong>${formatDate(attempt.createdAt||attempt.startedAt)}</strong></div><div class="contact-result-actions"><button class="btn btn-sm btn-secondary" data-view-attempt="${escapeHtml(attempt.attemptId||attempt.id)}">Ver contato</button><button class="btn btn-sm btn-danger" data-delete-attempt="${escapeHtml(attempt.attemptId||attempt.id)}">Apagar</button></div></article>`;}).join(''):'<div class="empty">Nenhuma tentativa neste período.</div>'}</div>
       </section>`;
 
     __bindPeriodFilter(body,(period,specificDate)=>{
