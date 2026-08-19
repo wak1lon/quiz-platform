@@ -1,6 +1,8 @@
 import * as local from './storage.js';
 import { getFirebase, firebaseEnabled } from './firebase.js';
 import { deepClone } from './utils.js';
+import { getLegal } from './platform-safe-settings.js';
+import { resolvePublicLegal } from './public-legal-settings.js';
 
 const FIREBASE_TIMEOUT_MS=12000;
 const FIRESTORE_SAFE_QUIZ_BYTES=850000;
@@ -17,6 +19,7 @@ export async function storageMode(){return firebaseEnabled()?'Firebase':'Local';
 function cloudQuizPayload(quiz){
   const copy=deepClone(quiz);
   delete copy.submissions;
+  copy.legal=resolvePublicLegal(getLegal());
   const bytes=quizPayloadBytes(copy);
   if(bytes>FIRESTORE_SAFE_QUIZ_BYTES&&firebaseEnabled()){
     throw new Error(`As imagens deixaram o quiz muito pesado para publicação (${Math.round(bytes/1024)} KB). Remova ou troque uma imagem e tente novamente.`);
@@ -109,9 +112,9 @@ export async function getQuizBySlug(slug){
   if(!firebaseEnabled())return local.getQuizzes().find(q=>q.status==='published'&&String(q.slug||'').trim()===wanted)||null;
   try{
     const f=await loadFirebase();
-    const publishedQuery=f.query(f.collection(f.db,'quizzes'),f.where('status','==','published'));
+    const publishedQuery=f.query(f.collection(f.db,'quizzes'),f.where('status','==','published'),f.where('slug','==',wanted),f.limit(1));
     const snapshot=await withTimeout(f.getDocs(publishedQuery),'Carregamento do quiz público');
-    const match=snapshot.docs.find(doc=>String(doc.data()?.slug||'').trim()===wanted);
+    const match=snapshot.docs[0];
     return match?{id:match.id,...match.data(),submissions:[]}:null;
   }catch(error){
     console.warn('Consulta pública ao Firebase falhou; tentando cópia local publicada.',error);

@@ -1,13 +1,13 @@
-import { getQuizBySlug, saveSubmission, incrementView, getLocalState } from './repository.js';
-import { RESPONSE_TYPES, OPTION_TYPES, uid } from './defaults.js';
+import { getQuizBySlug, saveSubmission, incrementView, getLocalState } from './public-repository.js';
+import { RESPONSE_TYPES, OPTION_TYPES, uid } from './quiz-runtime.js';
 import { escapeHtml, safeJson, toast } from './utils.js';
 import { getLegal } from './platform-safe-settings.js';
+import { resolvePublicLegal } from './public-legal-settings.js';
 import { getPlatformMemory } from './platform-memory.js';
 import { applyQuizPageDesign, quizTopMediaHtml } from './quiz-published-design.js';
 
 const root=document.getElementById('quizRoot');
 const slug=new URLSearchParams(location.search).get('slug')||'previdenciario';
-const legal=getLegal();
 const platformMemory=getPlatformMemory();
 const platformName=platformMemory?.platformName||'QUIZ ADV';
 
@@ -26,7 +26,6 @@ const PHONE_COUNTRIES=[
 ];
 
 let tracker={initTracking:()=>{},track:()=>{}};
-try{tracker=await import('./tracking.js');}catch(error){console.warn('Tracking indisponível; quiz continuará funcionando.',error);}
 
 let quiz=null;
 let answers={};
@@ -40,12 +39,22 @@ let consentChecked=false;
 let attemptId=null;
 let attemptCreatedAt=null;
 let attemptSavePromise=null;
+let progressSaveTimer=null;
+let legal=null;
 
-try{quiz=await getQuizBySlug(slug);}catch(error){console.error('Falha ao carregar quiz.',error);}
+const [trackingResult,quizResult]=await Promise.allSettled([
+  import('./tracking.js'),
+  getQuizBySlug(slug)
+]);
+if(trackingResult.status==='fulfilled')tracker=trackingResult.value;
+else console.warn('Tracking indisponível; quiz continuará funcionando.',trackingResult.reason);
+if(quizResult.status==='fulfilled')quiz=quizResult.value;
+else console.error('Falha ao carregar quiz.',quizResult.reason);
 if(!quiz){
   root.innerHTML='<section class="error-card"><h1>Quiz não encontrado</h1><p>Confira o link ou publique novamente o quiz no painel administrativo.</p></section>';
   throw new Error('Quiz não encontrado');
 }
+legal=resolvePublicLegal({...getLegal(),...(quiz.legal||{})});
 
 applyDesign();
 try{tracker.initTracking({...getLocalState().settings,...quiz.integrations});}catch(error){console.warn('Tracking não iniciado.',error);}
@@ -53,6 +62,8 @@ try{await incrementView(quiz);}catch(error){console.warn('Visualização não re
 trackSafe('quiz_view',{quiz_id:quiz.id,quiz_slug:quiz.slug});
 
 const attemptsKey=`qp_attempts_${quiz.id}`;
+window.addEventListener('pagehide',flushProgress,{capture:true});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')flushProgress();});
 restoreProgress();
 if(maxAttemptsReached())renderAttemptLimit();
 else{
@@ -71,9 +82,10 @@ function applyDesign(){
 
 function legalFooter(){
   const links=[];
-  if(legal.privacyUrl)links.push(`<a href="${escapeHtml(legal.privacyUrl)}" target="_blank" rel="noopener">Política de Privacidade</a>`);
-  if(legal.termsUrl)links.push(`<a href="${escapeHtml(legal.termsUrl)}" target="_blank" rel="noopener">Termos de Uso</a>`);
-  return links.length?`<div class="qp-legal-footer" style="text-align:center;font-size:11px;color:var(--muted);padding:14px 18px 0">${links.join(' · ')}</div>`:'';
+  if(legal?.privacyUrl)links.push(`<a href="${escapeHtml(legal.privacyUrl)}" target="_blank" rel="noopener noreferrer">Política de Privacidade</a>`);
+  if(legal?.termsUrl)links.push(`<a href="${escapeHtml(legal.termsUrl)}" target="_blank" rel="noopener noreferrer">Termos de Uso</a>`);
+  if(!links.length)return '';
+  return `<aside class="qp-legal-footer" aria-label="Privacidade e proteção de dados">Seus dados são tratados de acordo com a LGPD. ${links.join(' · ')}</aside>`;
 }
 
 function wrap(inner){
@@ -169,8 +181,9 @@ function currentWillFinish(q,index,flow){
 
 function consentHtml(){
   if(!legal.consentRequired)return '';
-  const text=escapeHtml(legal.consentText||'Li e concordo com a Política de Privacidade e os Termos de Uso.');
-  return `<label id="qpLegalConsent" style="display:flex;align-items:flex-start;gap:10px;margin:18px 0 2px;padding:12px;border:1px solid var(--border);border-radius:10px;background:rgba(255,255,255,.7);font-size:12px;line-height:1.5"><input id="qpLegalConsentInput" type="checkbox" ${consentChecked?'checked':''} style="margin-top:3px"><span>${text}</span></label><div id="qpLegalError" style="display:none;margin-top:8px;color:var(--danger);font-size:12px;font-weight:600"></div>`;
+  const text=escapeHtml(legal.consentText||'Estou ciente e concordo com o tratamento dos meus dados pessoais conforme a LGPD.');
+  const privacyLink=legal.privacyUrl?` <a href="${escapeHtml(legal.privacyUrl)}" target="_blank" rel="noopener noreferrer">Ler a Política de Privacidade</a>.`:'';
+  return `<label id="qpLegalConsent" style="display:flex;align-items:flex-start;gap:10px;margin:18px 0 2px;padding:12px;border:1px solid var(--border);border-radius:10px;background:rgba(255,255,255,.7);font-size:12px;line-height:1.5"><input id="qpLegalConsentInput" type="checkbox" ${consentChecked?'checked':''} style="margin-top:3px"><span>${text}${privacyLink}</span></label><div id="qpLegalError" style="display:none;margin-top:8px;color:var(--danger);font-size:12px;font-weight:600"></div>`;
 }
 
 function renderCurrent(){
@@ -221,7 +234,7 @@ function requireLegalConsent(){
   if(!legal.consentRequired||consentChecked)return true;
   const err=document.getElementById('qpLegalError');
   if(err){
-    err.textContent='Você precisa concordar com a Política de Privacidade e os Termos de Uso antes de concluir.';
+    err.textContent=legal.termsUrl?'Você precisa concordar com a Política de Privacidade e os Termos de Uso antes de concluir.':'Você precisa concordar com a Política de Privacidade antes de concluir.';
     err.style.display='block';
   }
   toast('Aceite os termos para concluir.','error');
@@ -388,7 +401,7 @@ async function advance(q){
 
   if(history[history.length-1]!==q.id)history.push(q.id);
   currentId=next.id;
-  autoSave();
+  autoSave({immediate:true});
   renderCurrent();
 }
 
@@ -413,7 +426,7 @@ function goBack(){
 
   if(target){
     currentId=target;
-    autoSave();
+    autoSave({immediate:true});
     renderCurrent();
   }else{
     toast('Não há uma etapa anterior disponível.','error');
@@ -593,11 +606,25 @@ function bindField(q){
   });
 }
 
-function autoSave(){
+function writeProgress(){
   if(!quiz.settings?.autoSave)return;
   try{
     localStorage.setItem(`qp_progress_${quiz.id}`,JSON.stringify({answers,currentId,history,consentChecked,attemptId,attemptCreatedAt,startedAt:new Date(startedAt).toISOString(),updatedAt:new Date().toISOString()}));
   }catch(error){console.warn('Progresso local não pôde ser salvo.',error);}
+}
+
+function autoSave({immediate=false}={}){
+  if(!quiz.settings?.autoSave)return;
+  if(progressSaveTimer){clearTimeout(progressSaveTimer);progressSaveTimer=null;}
+  if(immediate){writeProgress();return;}
+  progressSaveTimer=setTimeout(()=>{progressSaveTimer=null;writeProgress();},180);
+}
+
+function flushProgress(){
+  if(!progressSaveTimer)return;
+  clearTimeout(progressSaveTimer);
+  progressSaveTimer=null;
+  writeProgress();
 }
 
 function restoreProgress(){
@@ -615,6 +642,7 @@ function restoreProgress(){
 }
 
 function clearProgress(){
+  if(progressSaveTimer){clearTimeout(progressSaveTimer);progressSaveTimer=null;}
   try{localStorage.removeItem(`qp_progress_${quiz.id}`);}catch{}
 }
 

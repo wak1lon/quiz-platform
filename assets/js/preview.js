@@ -1,17 +1,21 @@
-import { RESPONSE_TYPES } from './defaults.js';
+import { RESPONSE_TYPES } from './quiz-runtime.js';
 import { escapeHtml } from './utils.js';
 import { applyQuizPageDesign, quizTopMediaHtml } from './quiz-published-design.js';
+import { getLegal } from './platform-safe-settings.js';
+import { resolvePublicLegal } from './public-legal-settings.js';
 
 const root=document.getElementById('previewRoot');
 let quiz=null,answers={},step=0;
 try{quiz=JSON.parse(sessionStorage.getItem('qp_preview_draft')||'null');}catch{}
 if(!quiz){root.innerHTML='<section class="error-card"><h1>Pré-visualização indisponível</h1><p>Volte ao editor e clique em Pré-visualizar novamente.</p></section>';throw new Error('Sem rascunho');}
+const legal=resolvePublicLegal({...getLegal(),...(quiz.legal||{})});
 applyDesign();
 if(quiz.settings?.showWelcome===false)renderStep();
 else renderWelcome();
 
 function applyDesign(){applyQuizPageDesign(quiz,{preview:true});}
-function wrap(inner){const d=quiz.design||{};return `<section class="quiz-card-public" style="border-radius:${d.cardRadius||18}px;background:${d.cardBackground||'#fff'}"><div class="quiz-inner" style="padding:${d.cardPadding||32}px">${quizTopMediaHtml(d,escapeHtml)}${inner}</div></section>`;}
+function legalFooter(){const links=[];if(legal.privacyUrl)links.push(`<a href="${escapeHtml(legal.privacyUrl)}" target="_blank" rel="noopener noreferrer">Política de Privacidade</a>`);if(legal.termsUrl)links.push(`<a href="${escapeHtml(legal.termsUrl)}" target="_blank" rel="noopener noreferrer">Termos de Uso</a>`);return links.length?`<aside class="qp-legal-footer" aria-label="Privacidade e proteção de dados">Seus dados são tratados de acordo com a LGPD. ${links.join(' · ')}</aside>`:'';}
+function wrap(inner){const d=quiz.design||{};return `<section class="quiz-card-public" style="border-radius:${d.cardRadius||18}px;background:${d.cardBackground||'#fff'}"><div class="quiz-inner" style="padding:${d.cardPadding||32}px">${quizTopMediaHtml(d,escapeHtml)}${inner}${legalFooter()}</div></section>`;}
 function renderWelcome(){root.innerHTML=wrap(`<div class="quiz-question quiz-welcome"><span class="eyebrow quiz-welcome-kicker">${escapeHtml(quiz.category||'QUIZ')}</span><div class="quiz-welcome-copy"><h1>${escapeHtml(quiz.title||'Quiz')}</h1><p>${escapeHtml(quiz.messages?.welcome||quiz.description||'Pré-visualização do quiz.')}</p></div><button id="startPreview" class="btn btn-primary quiz-start-button"><span>Iniciar</span><span aria-hidden="true">→</span></button></div>`);document.getElementById('startPreview').onclick=()=>{step=0;renderStep();};}
 function visibleQuestions(){return (quiz.questions||[]).filter(q=>q.visible!==false&&condition(q));}
 function condition(q){if(!q.condition?.fieldId)return true;const a=answers[q.condition.fieldId],b=q.condition.value;let m=false;switch(q.condition.operator){case '!=':m=String(a)!=String(b);break;case '>':m=Number(a)>Number(b);break;case '<':m=Number(a)<Number(b);break;case 'contains':m=Array.isArray(a)?a.includes(b):String(a??'').includes(String(b));break;default:m=String(a)==String(b);}return q.condition.effect==='hide'?!m:m;}
