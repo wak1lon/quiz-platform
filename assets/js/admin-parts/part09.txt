@@ -3,8 +3,12 @@ const imageTools=await import(new URL('image-tools.js',__base).href);
 const quizAssetsApi=await import(new URL('quiz-local-assets.js',__base).href);
 const bpcTeaApi=await import(new URL('template-bpc-tea.js?v=tea15-20260820-2',__base).href);
 const advogadoPrevidenciarioApi=await import(new URL('template-advogado-previdenciario.js',__base).href);
+const incapacidadeNegadoApi=await import(new URL('template-incapacidade-negado.js?v=prev-20260820-1',__base).href);
+const aposentadoriaRuralApi=await import(new URL('template-aposentadoria-rural.js?v=prev-20260820-1',__base).href);
 if(!TEMPLATES.some(t=>t.id==='template_advogado_previdenciario'))TEMPLATES.unshift(advogadoPrevidenciarioApi.createAdvogadoPrevidenciarioTemplate());
 if(!TEMPLATES.some(t=>t.id==='template_bpc_tea'))TEMPLATES.unshift(bpcTeaApi.createBpcTeaTemplate());
+if(!TEMPLATES.some(t=>t.id==='template_incapacidade_negado'))TEMPLATES.unshift(incapacidadeNegadoApi.createIncapacidadeNegadoTemplate());
+if(!TEMPLATES.some(t=>t.id==='template_aposentadoria_rural'))TEMPLATES.unshift(aposentadoriaRuralApi.createAposentadoriaRuralTemplate());
 
 function applyActiveProfile(){const p=safeSettingsApi.getActiveProfile();const avatar=document.querySelector('.avatar');if(avatar){if(p?.photoData)avatar.innerHTML=`<img src="${p.photoData}" alt="Perfil" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;else avatar.textContent=(p?.name||'WG').split(/\s+/).map(x=>x[0]).join('').slice(0,2).toUpperCase();avatar.title=`${p?.name||'Usuário'} · ${p?.role||'Perfil local'}`;}const brandMark=document.querySelector('.brand-mark');if(brandMark&&p?.panelLogoData)brandMark.innerHTML=`<img src="${p.panelLogoData}" alt="Logo" style="width:100%;height:100%;object-fit:contain;border-radius:inherit">`;}
 applyActiveProfile();

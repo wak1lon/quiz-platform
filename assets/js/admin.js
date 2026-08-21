@@ -24,7 +24,7 @@ async function loadPart(path){
 
 async function loadAdminSource(){
   try{
-    const response=await fetch(new URL('admin-bundle.js?v=tea15-20260820-2',import.meta.url),{cache:'no-cache'});
+    const response=await fetch(new URL('admin-bundle.js?v=prev-20260820-3',import.meta.url),{cache:'no-cache'});
     if(response.ok){
       const bundled=await response.text();
       if(bundled.trim())return bundled;
