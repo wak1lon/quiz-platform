@@ -77,6 +77,13 @@ O navegador Playwright não estava disponível; os downloads de Chromium retorna
 - UI: `assets/js/admin-ui.js`, `admin/index.html`, `assets/css/admin.css`, `responsive.css`, `metrics.css`, `quiz.css`.
 - Verificação: `package.json`, `package-lock.json`, `.gitignore`, `scripts/test-regressions.mjs`, este relatório.
 
+## Preview e bloqueio de validação visual
+
+Preview inicial: https://quiz-platform-l53cpkgfj-wakilon-projetos.vercel.app
+Deployment: `dpl_C9p56yZXCnHC7xAvcrvFSkzWE5hc`, estado READY, commit `2f0b446e9c7acaae90f003f9d05f2609c9c90011`. A leitura autenticada de `/admin/` retornou HTTP 200 e confirmou `admin-page`, `admin-ui.js` e o preload de `admin-bundle.js`. O domínio de produção foi confirmado como vinculado e verificado na Vercel; os arquivos públicos conferidos coincidiam com a referência antes das mudanças.
+
+O navegador cloud abriu a preview, mas foi redirecionado ao login da Vercel. A revisão automática rejeitou criar um link temporário de acesso por risco de ampliar acesso ao deployment privado. Não foram removidas proteções nem tentados contornos. A interface administrativa completa continua sem inspeção visual real; requer acesso autorizado para concluir.
+
 ## Antes de liberar produção
 
 1. Conferir que a branch continua baseada na main atual, sem sobrescrever novas alterações.
