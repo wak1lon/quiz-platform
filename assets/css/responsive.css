@@ -1,2 +1,25 @@
 @media (max-width:1100px){.stats-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.dashboard-grid{grid-template-columns:1fr}.quiz-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.template-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.editor-layout{grid-template-columns:180px minmax(0,1fr)}.editor-layout .editor-properties{grid-column:1/-1}.props{max-height:none}.integration-grid,.settings-grid{grid-template-columns:1fr}}
 @media (max-width:760px){.app-shell{display:block}.sidebar{position:fixed;left:-280px;z-index:100;width:260px;transition:.2s}.sidebar.open{left:0}.app-main{width:100%}.mobile-only{display:inline-grid}.topbar{padding:0 16px;height:74px}.content-area{padding:16px}.app-footer{padding:16px}.stats-grid,.quiz-grid,.template-grid{grid-template-columns:1fr}.form-grid{grid-template-columns:1fr}.field.full{grid-column:auto}.editor-layout{grid-template-columns:1fr}.palette{grid-template-columns:repeat(2,minmax(0,1fr));max-height:none}.editor-canvas{min-height:500px}.canvas-drop{min-height:470px}.editor-topline{align-items:stretch;flex-direction:column}.editor-topline input{min-width:0;width:100%}.section-head{align-items:flex-start;flex-direction:column}.toolbar{align-items:stretch;flex-direction:column}.landing-card{padding:30px 22px}.quiz-inner{padding:24px 18px}.quiz-actions-public{flex-direction:column-reverse}.quiz-actions-public .btn{width:100%}.result-table{display:block;overflow-x:auto;white-space:nowrap}}
+
+@media(max-width:760px){
+  .admin-page.sidebar-visible{overflow:hidden}
+  .admin-page .sidebar{height:100dvh;overflow-y:auto;max-width:calc(100vw - 52px)}
+  .admin-page .topbar{gap:12px}
+  .admin-page .topbar>div:nth-child(2){flex:1;min-width:0}
+  .admin-page .topbar h1{font-size:17px}
+  .admin-page .topbar p{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .admin-page .topbar-actions{gap:8px}
+  .admin-page .editor-topline .actions{display:flex}
+  .admin-page .editor-topline .actions .btn{flex:1}
+  .admin-page .tabs{width:100%;flex-wrap:nowrap;overflow:auto}
+  .admin-page .tab{flex-shrink:0}
+  .admin-page :is(.field input,.field textarea,.field select,.search input,#editorTitle){font-size:16px}
+  .admin-page .palette{max-height:320px;overflow:auto}
+  .admin-page .palette .eyebrow{grid-column:1/-1}
+  .admin-page .modal-backdrop{padding:12px}
+  .admin-page .modal{max-height:calc(100dvh - 24px)}
+  .admin-page .modal-head,.admin-page .modal-body,.admin-page .modal-foot{padding:16px}
+  .admin-page .publish-row{flex-wrap:wrap}
+  .admin-page .publish-row input{min-width:0;width:100%}
+}
+@media(prefers-reduced-motion:reduce){.admin-page *, .admin-page *:before,.admin-page *:after{scroll-behavior:auto;transition:none!important}}

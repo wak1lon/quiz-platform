@@ -210,3 +210,15 @@
   }
 }
 
+
+/* Interaction improvements only: leave published colors and dimensions intact. */
+.quiz-page :is(button,a,input,textarea,select):focus-visible{outline:2px solid var(--primary);outline-offset:3px}
+.quiz-page .option:has(input:focus-visible){outline:2px solid var(--primary);outline-offset:3px}
+.quiz-page .quiz-field [aria-invalid=true]{border-color:var(--danger)}
+.quiz-page .quiz-field :is(input,select,textarea):focus{box-shadow:0 0 0 3px color-mix(in srgb,var(--primary) 15%,transparent)}
+.quiz-page button:disabled{cursor:wait}
+.quiz-loading{display:grid;gap:16px}
+.loading-line{display:block;height:20px;width:80%;border-radius:6px;background:var(--border);animation:quiz-loading 1.2s ease-in-out infinite alternate}
+.loading-line-short{width:55%}
+@keyframes quiz-loading{to{opacity:.4}}
+@media(prefers-reduced-motion:reduce){.loading-line{animation:none}}

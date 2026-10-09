@@ -415,3 +415,5 @@ renderResults=function(){
   select?.addEventListener('change',draw);
   draw();
 };
+
+const authorized=await requireLoginIfNeeded();if(authorized){await refresh();await navigate('dashboard');}

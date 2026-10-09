@@ -13,12 +13,13 @@
   <link rel="stylesheet" href="../assets/css/admin.css" />
   <link rel="stylesheet" href="../assets/css/responsive.css" />
   <link rel="stylesheet" href="../assets/css/metrics.css" />
+  <link rel="modulepreload" href="../assets/js/admin-bundle.js">
 </head>
-<body>
+<body class="admin-page">
   <div class="app-shell">
     <aside class="sidebar" id="sidebar">
       <div class="brand"><span class="brand-mark">Q</span><div><strong data-platform-name>QUIZ ADV</strong><small>Gestão de quizzes</small></div></div>
-      <nav class="side-nav" id="sideNav">
+      <nav class="side-nav" id="sideNav" aria-label="Navegação principal">
         <button data-view="dashboard" class="active">Dashboard</button>
         <button data-view="quizzes">Meus Quizzes</button>
         <button data-view="editor">Criar Quiz</button>
@@ -32,19 +33,20 @@
 
     <div class="app-main">
       <header class="topbar">
-        <button id="menuToggle" class="icon-button mobile-only" aria-label="Abrir menu">☰</button>
+        <button id="menuToggle" class="icon-button mobile-only" aria-label="Abrir menu" aria-controls="sidebar" aria-expanded="false">☰</button>
         <div><h1 id="viewTitle">Dashboard</h1><p id="viewSubtitle">Visão geral da operação</p></div>
         <div class="topbar-actions"><span id="storageBadge" class="status-pill">Local</span><button class="avatar" id="accountAvatar" type="button" aria-label="Abrir menu da conta">WG</button></div>
       </header>
-      <main id="appContent" class="content-area" aria-live="polite"></main>
+      <main id="appContent" class="content-area" aria-live="polite"><section class="card card-pad" role="status">Carregando painel...</section></main>
       <footer class="app-footer">QUIZ ADV · Gestão de quizzes e formulários</footer>
     </div>
   </div>
 
   <div id="modalRoot"></div>
   <div id="toastRoot" class="toast-root"></div>
-  <script type="module" src="../assets/js/admin.js?v=prev-20260820-3"></script>
+  <script type="module" src="../assets/js/admin.js?v=modern-1"></script>
   <script type="module" src="../assets/js/image-option-publish-fix.js"></script>
   <script type="module" src="../assets/js/published-design-admin-fix.js"></script>
+  <script type="module" src="../assets/js/admin-ui.js"></script>
 </body>
 </html>

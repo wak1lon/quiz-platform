@@ -25,7 +25,12 @@ const PHONE_COUNTRIES=[
   {code:'52',iso:'MX',flag:'🇲🇽',name:'México',min:10,max:10}
 ];
 
-let tracker={initTracking:()=>{},track:()=>{}};
+let tracker=null;
+const pendingTracking=[];
+const trackingReady=import('./tracking.js').catch(error=>{
+  console.warn('Tracking indisponível; quiz continuará funcionando.',error);
+  return null;
+});
 
 let quiz=null;
 let answers={};
@@ -42,14 +47,14 @@ let attemptSavePromise=null;
 let progressSaveTimer=null;
 let legal=null;
 
-const [trackingResult,quizResult]=await Promise.allSettled([
-  import('./tracking.js'),
-  getQuizBySlug(slug)
-]);
-if(trackingResult.status==='fulfilled')tracker=trackingResult.value;
-else console.warn('Tracking indisponível; quiz continuará funcionando.',trackingResult.reason);
-if(quizResult.status==='fulfilled')quiz=quizResult.value;
-else console.error('Falha ao carregar quiz.',quizResult.reason);
+let loadError=null;
+try{quiz=await getQuizBySlug(slug);}
+catch(error){loadError=error;console.error('Falha ao carregar quiz.',error);}
+if(!quiz&&loadError){
+  root.innerHTML='<section class="error-card" role="alert"><h1>Não foi possível carregar o quiz</h1><p>Verifique sua conexão e tente novamente.</p><button type="button" id="reloadQuiz" class="btn btn-primary">Tentar novamente</button></section>';
+  document.getElementById('reloadQuiz').onclick=()=>location.reload();
+  throw loadError;
+}
 if(!quiz){
   root.innerHTML='<section class="error-card"><h1>Quiz não encontrado</h1><p>Confira o link ou publique novamente o quiz no painel administrativo.</p></section>';
   throw new Error('Quiz não encontrado');
@@ -57,7 +62,13 @@ if(!quiz){
 legal=resolvePublicLegal({...getLegal(),...(quiz.legal||{})});
 
 applyDesign();
-try{tracker.initTracking({...getLocalState().settings,...quiz.integrations});}catch(error){console.warn('Tracking não iniciado.',error);}
+void trackingReady.then(module=>{
+  tracker=module;
+  if(!tracker){pendingTracking.length=0;return;}
+  try{tracker.initTracking({...getLocalState().settings,...quiz.integrations});}
+  catch(error){console.warn('Tracking não iniciado.',error);}
+  for(const [event,params] of pendingTracking.splice(0))trackSafe(event,params);
+});
 try{await incrementView(quiz);}catch(error){console.warn('Visualização não registrada.',error);}
 trackSafe('quiz_view',{quiz_id:quiz.id,quiz_slug:quiz.slug});
 
@@ -73,6 +84,7 @@ else{
 }
 
 function trackSafe(event,params={}){
+  if(!tracker){pendingTracking.push([event,params]);return;}
   try{tracker.track(event,params);}catch(error){console.warn('Evento de tracking ignorado.',error);}
 }
 
@@ -321,7 +333,7 @@ function clearFieldError(){
   const err=document.getElementById('fieldRequiredError');
   if(err)err.remove();
   const input=document.getElementById('fieldInput');
-  if(input)input.removeAttribute('aria-invalid');
+  if(input){input.removeAttribute('aria-invalid');input.removeAttribute('aria-describedby');}
 }
 
 function showFieldError(message){
@@ -330,12 +342,13 @@ function showFieldError(message){
   if(question){
     const el=document.createElement('div');
     el.id='fieldRequiredError';
+    el.setAttribute('role','alert');
     el.style='margin-top:10px;color:var(--danger);font-size:12px;font-weight:600';
     el.textContent=message;
     question.appendChild(el);
   }
   const input=document.getElementById('fieldInput');
-  if(input){input.setAttribute('aria-invalid','true');input.focus();}
+  if(input){input.setAttribute('aria-invalid','true');input.setAttribute('aria-describedby','fieldRequiredError');input.focus();}
   else optionInputs({id:currentId})[0]?.focus();
 }
 
@@ -483,7 +496,7 @@ function renderField(q,progress){
   if(q.type==='container'||q.type==='grid')return `<div>${escapeHtml(q.label||'')}</div>${desc}`;
   if(ACTION_TYPES.has(q.type))return `<button type="button" id="fieldAction" class="btn btn-primary">${escapeHtml(q.label||actionLabel(q))}</button>`;
 
-  const title=`<h2>${escapeHtml(q.label)}${q.required?' *':''}</h2>${desc}`;
+  const title=`<h2 id="quizQuestionTitle">${escapeHtml(q.label)}${q.required?' *':''}</h2>${desc}`;
 
   if(q.type==='image-options'){
     return `${title}<div class="option-list image-option-grid">${(q.options||[]).map(o=>`<label class="option image-option-card ${selectedOption(q,o.value)?'selected':''}" data-image-choice="true"><input class="image-option-input" data-field-id="${escapeHtml(q.id)}" type="radio" name="${escapeHtml(q.id)}" value="${escapeHtml(o.value)}" aria-label="${escapeHtml(o.label||'Opção')}" ${selectedOption(q,o.value)?'checked':''}><span class="image-option-media">${o.image?`<img class="image-option-image" src="${escapeHtml(o.image)}" alt="${escapeHtml(o.label||'Opção')}" loading="lazy" decoding="async">`:(o.icon?`<span class="image-option-placeholder">${escapeHtml(o.icon)}</span>`:'<span class="image-option-placeholder">Sem imagem</span>')}</span><small class="image-option-title">${escapeHtml(o.label||'Opção')}</small></label>`).join('')}</div>`;
@@ -538,6 +551,11 @@ function markSelectedOptions(){
 }
 
 function bindField(q){
+  const inputLabel=root.querySelector('#fieldInput');
+  if(inputLabel)inputLabel.setAttribute('aria-labelledby','quizQuestionTitle');
+  const group=root.querySelector('.option-list');
+  if(group){group.setAttribute('role','group');group.setAttribute('aria-labelledby','quizQuestionTitle');}
+
   if(q.type==='image-options'){
     root.querySelectorAll('[data-image-choice]').forEach(card=>{
       card.onclick=event=>{

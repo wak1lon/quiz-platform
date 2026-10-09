@@ -88,7 +88,8 @@ export async function getQuizBySlug(slug){
       try{
         return await withTimeout(()=>getQuizWithSdk(wanted),'Carregamento alternativo do quiz',FIREBASE_TIMEOUT_MS);
       }catch(sdkError){
-        console.warn('Firebase indisponível; tentando cópia local publicada.',sdkError);
+        console.warn('Firebase indisponível; não é seguro exibir uma cópia local desatualizada.',sdkError);
+        throw new Error('Não foi possível confirmar a versão publicada. Verifique sua conexão e tente novamente.');
       }
     }
   }

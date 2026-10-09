@@ -353,3 +353,14 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Administrative component finish; values and periods retain their original logic. */
+.admin-page .metric-filter{padding:18px 20px;gap:18px}
+.admin-page .metric-period{min-height:38px;border-radius:7px;background:var(--surface);transition:background .15s,border-color .15s}
+.admin-page .metric-period.active{background:var(--primary)}
+.admin-page .metric-date{background:var(--surface);min-height:38px}
+.admin-page .contact-result-row,.admin-page .contact-answer-item{background:var(--surface);border-radius:10px}
+.admin-page .contact-result-row:hover{box-shadow:0 2px 8px rgba(15,23,42,.04)}
+.admin-page .contact-identity{background:var(--background)}
+.admin-page .chart-col small{font-size:10px;color:var(--muted);margin-top:9px;font-variant-numeric:tabular-nums}
+@media(max-width:760px){.admin-page .metric-filter{padding:16px}.admin-page .metric-date{font-size:16px}}

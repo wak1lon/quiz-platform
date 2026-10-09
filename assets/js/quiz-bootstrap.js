@@ -13,5 +13,5 @@ try{
   await import('./quiz.js');
 }catch(error){
   console.error('Falha ao iniciar o quiz público.',error);
-  renderFatal('A página do quiz não conseguiu iniciar. Atualize a página e tente novamente.');
+  if(!root?.querySelector('.error-card'))renderFatal('A página do quiz não conseguiu iniciar. Atualize a página e tente novamente.');
 }
