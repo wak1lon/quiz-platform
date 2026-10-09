@@ -1,0 +1,11 @@
+{
+  "name": "quiz-platform",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build:admin": "node scripts/build-admin.mjs",
+    "check:bundle": "node scripts/build-admin.mjs --check",
+    "test": "node --experimental-vm-modules scripts/test-regressions.mjs"
+  },
+  "devDependencies": { "linkedom": "0.18.12" }
+}

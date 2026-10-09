@@ -27,7 +27,7 @@ function renderField(q){
   if(q.type==='image')return `<h2>${escapeHtml(q.label)}</h2>${q.imageUrl?`<img class="quiz-content-image" src="${escapeHtml(q.imageUrl)}" alt="${escapeHtml(q.alt||'Imagem')}" loading="lazy" decoding="async">`:desc}`;
   if(q.type==='separator')return '<hr style="border:0;border-top:1px solid var(--border);margin:22px 0">';
 
-  const title=`<h2>${escapeHtml(q.label)}${q.required?' *':''}</h2>${desc}`;
+  const title=`<h2 id="quizQuestionTitle">${escapeHtml(q.label)}${q.required?' *':''}</h2>${desc}`;
 
   if(q.type==='image-options'){
     return `${title}<div class="option-list image-option-grid">${(q.options||[]).map(o=>`<label class="option image-option-card ${answers[q.id]===o.value?'selected':''}" data-image-choice="true"><input class="image-option-input" type="radio" name="${escapeHtml(q.id)}" value="${escapeHtml(o.value)}" aria-label="${escapeHtml(o.label||'Opção')}" ${answers[q.id]===o.value?'checked':''}><span class="image-option-media">${o.image?`<img class="image-option-image" src="${escapeHtml(o.image)}" alt="${escapeHtml(o.label||'Opção')}" loading="lazy" decoding="async">`:(o.icon?`<span class="image-option-placeholder">${escapeHtml(o.icon)}</span>`:'<span class="image-option-placeholder">Sem imagem</span>')}</span><small class="image-option-title">${escapeHtml(o.label||'Opção')}</small></label>`).join('')}</div>`;
@@ -51,6 +51,11 @@ function renderField(q){
 }
 
 function bind(q){
+  const inputLabel=root.querySelector('#fieldInput');
+  if(inputLabel)inputLabel.setAttribute('aria-labelledby','quizQuestionTitle');
+  const group=root.querySelector('.option-list');
+  if(group){group.setAttribute('role','group');group.setAttribute('aria-labelledby','quizQuestionTitle');}
+
   if(q.type==='image-options'){
     const cards=[...root.querySelectorAll('[data-image-choice]')];
     cards.forEach(card=>{

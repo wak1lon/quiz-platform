@@ -1,9 +1,15 @@
 const __base=new URL('../assets/js/', window.location.href);
-const { blankQuiz, makeQuestion, PALETTE, TEMPLATES, OPTION_TYPES, RESPONSE_TYPES, uid } = await import(new URL('defaults.js',__base).href);
-const { listQuizzes, saveQuiz, deleteQuiz, resetDemo, getLocalState, saveGlobalSettings, storageMode } = await import(new URL('repository.js',__base).href);
-const { firebaseEnabled } = await import(new URL('firebase.js',__base).href);
-const { waitForAuth, loginEmail, logout } = await import(new URL('auth.js',__base).href);
-const { deepClone, escapeHtml, formatDate, slugify, toast, copyText, download, csvEscape, safeJson } = await import(new URL('utils.js',__base).href);
+const [{ blankQuiz, makeQuestion, PALETTE, TEMPLATES, OPTION_TYPES, RESPONSE_TYPES, uid },
+  { listQuizzes, saveQuiz, deleteQuiz, resetDemo, getLocalState, saveGlobalSettings, storageMode },
+  { firebaseEnabled },
+  { waitForAuth, loginEmail, logout },
+  { deepClone, escapeHtml, formatDate, slugify, toast, copyText, download, csvEscape, safeJson }] = await Promise.all([
+  import(new URL('defaults.js',__base).href),
+  import(new URL('repository.js',__base).href),
+  import(new URL('firebase.js',__base).href),
+  import(new URL('auth.js',__base).href),
+  import(new URL('utils.js',__base).href)
+]);
 
 const content=document.getElementById('appContent');
 const sideNav=document.getElementById('sideNav');
@@ -29,7 +35,7 @@ function statusLabel(status){return status==='published'?'<span class="status-pi
 function uniqueSlug(value,currentId){let base=slugify(value)||`quiz-${Date.now().toString(36)}`;let candidate=base,n=2;while(quizzes.some(q=>q.id!==currentId&&q.slug===candidate))candidate=`${base}-${n++}`;return candidate;}
 
 async function refresh(){quizzes=await listQuizzes({admin:true,includeSubmissions:true});quizzesLastLoadedAt=Date.now();storageBadge.textContent=await storageMode();storageBadge.className=`status-pill ${storageBadge.textContent==='Firebase'?'success':''}`;}
-async function navigate(view,opts={}){activeView=view;sideNav.querySelectorAll('button[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===view));[titleEl.textContent,subtitleEl.textContent]=viewMeta[view]||['QuizPlatform',''];if(view==='editor'&&opts.quiz){editorQuiz=deepClone(opts.quiz);selectedFieldId=editorQuiz.questions?.[0]?.id||null;editorTab=opts.tab||'questions';}else if(view==='editor'&&!editorQuiz){editorQuiz=blankQuiz();selectedFieldId=editorQuiz.questions[0]?.id||null;}await render();document.getElementById('sidebar').classList.remove('open');}
+async function navigate(view,opts={}){activeView=view;sideNav.querySelectorAll('button[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===view));[titleEl.textContent,subtitleEl.textContent]=viewMeta[view]||['QuizPlatform',''];if(view==='editor'&&opts.quiz){editorQuiz=deepClone(opts.quiz);selectedFieldId=editorQuiz.questions?.[0]?.id||null;editorTab=opts.tab||'questions';}else if(view==='editor'&&!editorQuiz){editorQuiz=blankQuiz();selectedFieldId=editorQuiz.questions[0]?.id||null;}await render();document.getElementById('menuToggle').setAttribute('aria-expanded','false');document.getElementById('sidebar').classList.remove('open');}
 
 async function render(){if(activeView!=='editor'&&(!quizzes.length||Date.now()-quizzesLastLoadedAt>15000))await refresh();if(activeView==='dashboard')renderDashboard();if(activeView==='quizzes')renderQuizzes();if(activeView==='editor')renderEditor();if(activeView==='templates')renderTemplates();if(activeView==='results')renderResults();if(activeView==='settings')renderSettings();if(activeView==='integrations')renderGlobalIntegrations();}
 
@@ -56,6 +62,6 @@ function renderDashboard(){
 
 function renderQuizzes(){
   content.innerHTML=`<div class="section-head"><div><h2>Meus Quizzes</h2><p>Busque, filtre, edite, publique ou duplique.</p></div><button class="btn btn-primary" id="newQuiz">+ Novo Quiz</button></div>
-  <div class="toolbar"><div class="search"><input id="quizSearch" placeholder="Buscar quiz por título ou categoria"></div><select id="statusFilter" class="btn btn-secondary"><option value="">Todos os status</option><option value="draft">Rascunho</option><option value="published">Publicado</option><option value="archived">Arquivado</option></select></div><div id="quizList"></div>`;
+  <div class="toolbar"><div class="search"><input id="quizSearch" aria-label="Buscar quiz por título ou categoria" placeholder="Buscar quiz por título ou categoria"></div><select id="statusFilter" aria-label="Filtrar por status" class="btn btn-secondary"><option value="">Todos os status</option><option value="draft">Rascunho</option><option value="published">Publicado</option><option value="archived">Arquivado</option></select></div><div id="quizList"></div>`;
   const list=document.getElementById('quizList');
   const draw=()=>{const term=document.getElementById('quizSearch').value.toLowerCase();const status=document.getElementById('statusFilter').value;const filtered=quizzes.filter(q=>(!term||`${q.title} ${q.category}`.toLowerCase().includes(term))&&(!status||q.status===status));list.innerHTML=filtered.length?`<div class="quiz-grid">${filtered.map(q=>`<article class="card quiz-card"><div class="quiz-card-top"><div><h3>${escapeHtml(q.title)}</h3><div class="quiz-meta"><span>${escapeHtml(q.category||'Sem categoria')}</span><span>/quiz/?slug=${escapeHtml(q.slug)}</span></div></div>${statusLabel(q.status)}</div><div class="quiz-meta"><span>Respostas: ${q.statistics?.totalResponses||q.submissions?.length||0}</span><span>Atualizado: ${formatDate(q.statistics?.updatedAt)}</span></div><div class="quiz-actions"><button class="btn btn-sm btn-primary" data-edit="${q.id}">Editar</button><button class="btn btn-sm btn-secondary" data-preview="${q.id}">Visualizar</button><button class="btn btn-sm btn-secondary" data-publish="${q.id}">Publicar</button><button class="btn btn-sm btn-ghost" data-duplicate="${q.id}">Duplicar</button><button class="btn btn-sm btn-danger" data-delete="${q.id}">Excluir</button></div></article>`).join('')}</div>`:'<div class="card empty">Nenhum quiz encontrado.</div>';bindQuizCardActions();};

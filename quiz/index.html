@@ -13,9 +13,19 @@
   <link rel="stylesheet" href="../assets/css/style.css" />
   <link rel="stylesheet" href="../assets/css/quiz.css?v=controls-20260820-1" />
   <link rel="modulepreload" href="../assets/js/quiz.js" />
+  <link rel="modulepreload" href="../assets/js/public-repository.js" />
+  <link rel="modulepreload" href="../assets/js/firestore-public-rest.js" />
+  <link rel="modulepreload" href="../assets/js/firebase-config.js" />
+  <link rel="modulepreload" href="../assets/js/quiz-runtime.js" />
+  <link rel="modulepreload" href="../assets/js/utils.js" />
+  <link rel="modulepreload" href="../assets/js/quiz-published-design.js" />
+  <link rel="modulepreload" href="../assets/js/platform-safe-settings.js" />
+  <link rel="modulepreload" href="../assets/js/public-legal-settings.js" />
+  <link rel="modulepreload" href="../assets/js/platform-memory.js" />
+
 </head>
 <body class="quiz-page">
-  <main id="quizRoot" class="quiz-shell"></main>
+  <main id="quizRoot" class="quiz-shell"><section class="quiz-card-public" role="status" aria-live="polite"><div class="quiz-inner quiz-loading"><span class="loading-line" aria-hidden="true"></span><span class="loading-line loading-line-short" aria-hidden="true"></span><p>Carregando quiz...</p></div></section></main>
   <div id="toastRoot" class="toast-root"></div>
   <script type="module" src="../assets/js/quiz-bootstrap.js"></script>
 </body>
